@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
-import type { Location } from "@/lib/types";
-import { getBookableSlots, getLocation, getMenu, getTruckBySlug, getUpcomingServices } from "@/lib/mock-data";
+import { getBookableSlots, getStorefrontMenu, getTruckFromRequest, getUpcomingServices } from "@/lib/tenant";
 import { cartStorageKey } from "@/lib/cart";
 import { orderingWindow, pickDefaultService } from "@/lib/service";
 import { formatWhen } from "@/lib/time";
@@ -23,11 +22,11 @@ export default async function StorefrontPage({ params, searchParams }: Props) {
   const { truckSlug } = await params;
   const { service: serviceParam } = await searchParams;
 
-  const truck = getTruckBySlug(truckSlug);
+  const truck = await getTruckFromRequest(truckSlug);
   if (!truck) notFound();
 
   const now = new Date();
-  const services = getUpcomingServices(truck.id, now);
+  const { services, locations } = await getUpcomingServices(truck.id, now);
   const selected = services.find((s) => s.id === serviceParam) ?? pickDefaultService(services, now);
 
   if (!selected) {
@@ -41,12 +40,10 @@ export default async function StorefrontPage({ params, searchParams }: Props) {
     );
   }
 
-  const locations: Record<string, Location> = {};
-  for (const s of services) {
-    const location = getLocation(s.locationId);
-    if (location) locations[s.locationId] = location;
-  }
-  const menu = getMenu(selected.menuId);
+  const [menu, slots] = await Promise.all([
+    getStorefrontMenu(truck.id, selected.menuId),
+    getBookableSlots(truck.id, selected.id, now),
+  ]);
   if (!menu) notFound();
 
   const window = orderingWindow(selected, now);
@@ -64,7 +61,7 @@ export default async function StorefrontPage({ params, searchParams }: Props) {
           truck={truck}
           service={selected}
           location={locations[selected.locationId]}
-          firstSlot={getBookableSlots(selected, now)[0]}
+          firstSlot={slots[0]}
           now={now}
         />
         <UpcomingServices

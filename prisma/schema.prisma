@@ -1,0 +1,273 @@
+// FoodtruckApp schema. See CLAUDE.md for the rules this encodes:
+// money is integer cents, rates are basis points, timestamps are UTC, every
+// tenant-scoped row carries truckId, menu items are soft-deleted, and order
+// line items are price snapshots.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MembershipRole {
+  OWNER
+  STAFF
+}
+
+enum ServiceStatus {
+  DRAFT
+  PUBLISHED
+  LIVE
+  ENDED
+  CANCELLED
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  ACCEPTED
+  PREPARING
+  READY
+  PICKED_UP
+  CANCELLED
+  REFUNDED
+}
+
+enum OrderSource {
+  WEB
+  SMS
+  API
+}
+
+model Truck {
+  id                   String   @id @default(cuid())
+  slug                 String   @unique
+  name                 String
+  tagline              String   @default("")
+  timezone             String // IANA zone, e.g. "America/Chicago"
+  logoUrl              String?
+  brandColor           String   @default("#22603F")
+  brandColorForeground String   @default("#FFFFFF")
+  heroImageUrl         String?
+  stripeAccountId      String?  @unique
+  stripeOnboarded      Boolean  @default(false)
+  taxRateBps           Int      @default(0)
+  platformFeeBps       Int      @default(250)
+  customDomain         String?  @unique
+  notificationEmail    String? // where new-order emails go
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  memberships Membership[]
+  locations   Location[]
+  services    Service[]
+  menus       Menu[]
+  menuItems   MenuItem[]
+  orders      Order[]
+}
+
+// The tenancy boundary. Clerk only supplies the user's identity.
+model Membership {
+  id          String         @id @default(cuid())
+  truckId     String
+  clerkUserId String
+  role        MembershipRole @default(OWNER)
+  createdAt   DateTime       @default(now())
+
+  truck Truck @relation(fields: [truckId], references: [id], onDelete: Cascade)
+
+  @@unique([truckId, clerkUserId])
+  @@index([clerkUserId])
+}
+
+model Location {
+  id          String  @id @default(cuid())
+  truckId     String
+  name        String
+  addressLine String
+  city        String
+  lat         Float
+  lng         Float
+  notes       String?
+
+  truck    Truck     @relation(fields: [truckId], references: [id], onDelete: Cascade)
+  services Service[]
+
+  @@index([truckId])
+}
+
+// One truck, at one location, from one time to another.
+model Service {
+  id               String        @id @default(cuid())
+  truckId          String
+  locationId       String
+  menuId           String
+  startsAt         DateTime
+  endsAt           DateTime
+  orderingOpensAt  DateTime
+  orderingClosesAt DateTime
+  slotMinutes      Int
+  ordersPerSlot    Int
+  status           ServiceStatus @default(DRAFT)
+  orderCount       Int           @default(0) // incremented atomically to hand out order numbers
+
+  truck       Truck        @relation(fields: [truckId], references: [id], onDelete: Cascade)
+  location    Location     @relation(fields: [locationId], references: [id])
+  menu        Menu         @relation(fields: [menuId], references: [id])
+  pickupSlots PickupSlot[]
+  orders      Order[]
+
+  @@index([truckId, startsAt])
+}
+
+// Real rows, generated when a Service is published.
+model PickupSlot {
+  id          String   @id @default(cuid())
+  serviceId   String
+  startsAt    DateTime
+  capacity    Int
+  bookedCount Int      @default(0)
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  orders  Order[]
+
+  @@unique([serviceId, startsAt])
+}
+
+model Menu {
+  id        String  @id @default(cuid())
+  truckId   String
+  name      String
+  isDefault Boolean @default(false)
+
+  truck    Truck         @relation(fields: [truckId], references: [id], onDelete: Cascade)
+  sections MenuSection[]
+  services Service[]
+
+  @@index([truckId])
+}
+
+model MenuSection {
+  id        String @id @default(cuid())
+  menuId    String
+  name      String
+  sortOrder Int    @default(0)
+
+  menu  Menu       @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  items MenuItem[]
+
+  @@index([menuId])
+}
+
+model MenuItem {
+  id          String    @id @default(cuid())
+  truckId     String
+  sectionId   String
+  name        String
+  description String    @default("")
+  priceCents  Int
+  imageUrl    String?
+  isAvailable Boolean   @default(true)
+  archivedAt  DateTime? // soft delete: never hard-delete an item an order may reference
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  truck          Truck           @relation(fields: [truckId], references: [id], onDelete: Cascade)
+  section        MenuSection     @relation(fields: [sectionId], references: [id])
+  modifierGroups ModifierGroup[]
+  orderLineItems OrderLineItem[]
+
+  @@index([truckId])
+  @@index([sectionId])
+}
+
+model ModifierGroup {
+  id         String  @id @default(cuid())
+  menuItemId String
+  name       String
+  minSelect  Int     @default(0)
+  maxSelect  Int     @default(1)
+  required   Boolean @default(false)
+  sortOrder  Int     @default(0)
+
+  menuItem MenuItem         @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  options  ModifierOption[]
+
+  @@index([menuItemId])
+}
+
+model ModifierOption {
+  id              String  @id @default(cuid())
+  groupId         String
+  name            String
+  priceDeltaCents Int     @default(0)
+  isAvailable     Boolean @default(true)
+  sortOrder       Int     @default(0)
+
+  group ModifierGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+}
+
+model Order {
+  id                      String      @id @default(cuid())
+  truckId                 String
+  serviceId               String
+  pickupSlotId            String
+  orderNumber             String // "A07": short, for calling out at the window
+  customerName            String
+  customerPhone           String
+  customerEmail           String?
+  subtotalCents           Int
+  taxCents                Int
+  tipCents                Int
+  platformFeeCents        Int
+  totalCents              Int
+  status                  OrderStatus @default(PENDING_PAYMENT)
+  stripeCheckoutSessionId String?     @unique
+  stripePaymentIntentId   String?     @unique
+  placedAt                DateTime    @default(now())
+  readyAt                 DateTime?
+  pickedUpAt              DateTime?
+  source                  OrderSource @default(WEB)
+  updatedAt               DateTime    @updatedAt
+
+  truck      Truck           @relation(fields: [truckId], references: [id], onDelete: Cascade)
+  service    Service         @relation(fields: [serviceId], references: [id])
+  pickupSlot PickupSlot      @relation(fields: [pickupSlotId], references: [id])
+  lineItems  OrderLineItem[]
+
+  @@unique([serviceId, orderNumber])
+  @@index([truckId, status])
+  @@index([status, placedAt]) // the unpaid-order sweep
+}
+
+// A snapshot of what was bought, at the price paid. Never re-join to the live menu.
+model OrderLineItem {
+  id                String  @id @default(cuid())
+  orderId           String
+  menuItemId        String?
+  nameSnapshot      String
+  unitPriceCents    Int
+  quantity          Int
+  modifiersSnapshot Json // [{ group, name, priceDeltaCents }]
+  lineTotalCents    Int
+
+  order    Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+}
+
+// Stripe webhook idempotency guard: insert before processing.
+model WebhookEvent {
+  id            String    @id @default(cuid())
+  stripeEventId String    @unique
+  type          String
+  processedAt   DateTime?
+  createdAt     DateTime  @default(now())
+}

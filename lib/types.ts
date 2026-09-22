@@ -85,3 +85,51 @@ export type Menu = {
   name: string;
   sections: MenuSection[];
 };
+
+// ─── Orders ────────────────────────────────────────────────────────────────
+
+export type OrderStatus =
+  | "PENDING_PAYMENT"
+  | "PAID"
+  | "ACCEPTED"
+  | "PREPARING"
+  | "READY"
+  | "PICKED_UP"
+  | "CANCELLED"
+  | "REFUNDED";
+
+/** An order as a customer or vendor sees it. Lines are the price snapshots taken at checkout. */
+export type OrderView = {
+  id: string;
+  orderNumber: string;
+  status: OrderStatus;
+  customerName: string;
+  customerPhone: string;
+  pickupAt: string;
+  placedAt: string;
+  lines: {
+    id: string;
+    name: string;
+    quantity: number;
+    modifiers: string[];
+    lineTotalCents: number;
+  }[];
+  subtotalCents: number;
+  taxCents: number;
+  tipCents: number;
+  totalCents: number;
+};
+
+// ─── Dashboard ─────────────────────────────────────────────────────────────
+
+/** A menu item as the vendor manages it, including archived ones. */
+export type ManagedItem = MenuItem & {
+  sectionId: string;
+  archived: boolean;
+};
+
+export type ManagedSection = {
+  id: string;
+  name: string;
+  items: ManagedItem[];
+};

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getTruckBySlug } from "@/lib/mock-data";
+import { getTruckFromRequest } from "@/lib/tenant";
 
 type Props = {
   children: React.ReactNode;
@@ -9,7 +9,7 @@ type Props = {
 
 export async function generateMetadata({ params }: Omit<Props, "children">): Promise<Metadata> {
   const { truckSlug } = await params;
-  const truck = getTruckBySlug(truckSlug);
+  const truck = await getTruckFromRequest(truckSlug);
   if (!truck) return {};
   return { title: `Order ahead from ${truck.name}`, description: truck.tagline };
 }
@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: Omit<Props, "children">): Pro
 // color through --brand (and --primary, which globals.css points at it).
 export default async function TruckLayout({ children, params }: Props) {
   const { truckSlug } = await params;
-  const truck = getTruckBySlug(truckSlug);
+  const truck = await getTruckFromRequest(truckSlug);
   if (!truck) notFound();
 
   return (

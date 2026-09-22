@@ -11,6 +11,23 @@ export function formatCents(cents: number): string {
   }).format(cents / 100);
 }
 
+/**
+ * Parse what a vendor types into a price field ("12", "12.5", "$12.50") into
+ * integer cents, using string math so there is no float rounding.
+ * Returns null for anything that isn't a plain amount with at most 2 decimals.
+ */
+export function parseDollarsToCents(input: string): number | null {
+  const match = input.trim().replace(/^\$/, "").replace(/,/g, "").match(/^(\d{1,6})(?:\.(\d{0,2}))?$/);
+  if (!match) return null;
+  const [, dollars, fraction = ""] = match;
+  return Number(dollars) * 100 + Number(fraction.padEnd(2, "0"));
+}
+
+/** Cents → the plain string an input field shows, e.g. 1250 → "12.50". */
+export function centsToInput(cents: number): string {
+  return `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, "0")}`;
+}
+
 /** Apply a basis-point rate to an amount, rounding half up to the cent. */
 export function applyBps(amountCents: number, bps: number): number {
   return Math.round((amountCents * bps) / 10_000);

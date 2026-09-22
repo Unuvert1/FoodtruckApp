@@ -1,53 +1,32 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
-import type { Truck } from "@/lib/types";
-import { loadDemoOrder, type DemoOrder } from "@/lib/demo-order";
+import type { Location, OrderStatus as Status, OrderView, Truck } from "@/lib/types";
 import { formatCents } from "@/lib/money";
 import { formatDayLabel, formatTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-// Customer-facing names for Order.status, in the order they happen.
-const STEPS = [
-  { status: "PAID", label: "Order received" },
-  { status: "PREPARING", label: "Being prepared" },
-  { status: "READY", label: "Ready at the window" },
-  { status: "PICKED_UP", label: "Picked up" },
-] as const;
+// Customer-facing progress, in the order it happens. PAID and ACCEPTED both
+// read as "received": the customer doesn't need the distinction.
+const STEPS: { label: string; statuses: Status[] }[] = [
+  { label: "Order received", statuses: ["PAID", "ACCEPTED"] },
+  { label: "Being prepared", statuses: ["PREPARING"] },
+  { label: "Ready at the window", statuses: ["READY"] },
+  { label: "Picked up", statuses: ["PICKED_UP"] },
+];
 
-export function OrderStatus({ truck, orderNumber }: { truck: Truck; orderNumber: string }) {
-  const [order, setOrder] = useState<DemoOrder | null | undefined>(undefined);
-
-  useEffect(() => {
-    setOrder(loadDemoOrder(truck.slug, orderNumber));
-  }, [truck.slug, orderNumber]);
-
-  if (order === undefined) return null; // reading from storage; one frame at most
-
-  if (order === null) {
-    return (
-      <main className="mx-auto max-w-2xl px-4 py-16">
-        <h1 className="font-display text-4xl font-bold">We can&apos;t find order {orderNumber}</h1>
-        <p className="mt-3 text-muted-foreground">
-          Check the link in your receipt, or ask at the window. They can look it up by your name.
-        </p>
-        <Link href={`/${truck.slug}`} className="mt-6 inline-block font-semibold text-brand underline underline-offset-4">
-          Back to {truck.name}
-        </Link>
-      </main>
-    );
-  }
-
+export function OrderStatus({ truck, order, location }: { truck: Truck; order: OrderView; location: Location }) {
   const tz = truck.timezone;
-  const current = 0; // TODO(Stream D): poll the real Order.status
+  const cancelled = order.status === "CANCELLED" || order.status === "REFUNDED";
+  const current = STEPS.findIndex((s) => s.statuses.includes(order.status));
+  const ready = order.status === "READY";
 
   return (
     <main className="mx-auto max-w-2xl pb-16">
       <section className="bg-brand px-4 pt-8 pb-8 text-brand-foreground sm:rounded-b-3xl">
         <p className="font-display text-xl font-bold tracking-wide">{truck.name}</p>
-        <p className="mt-8 text-base font-medium">Thanks, {order.customerName}. Your order number is</p>
+        <p className="mt-8 text-base font-medium">
+          {ready ? `${order.customerName}, your order is ready.` : `Thanks, ${order.customerName}. Your order number is`}
+        </p>
         <h1 className="font-display text-[clamp(6rem,34vw,10rem)] leading-[0.85] font-extrabold tabular-nums">
           {order.orderNumber}
         </h1>
@@ -60,54 +39,62 @@ export function OrderStatus({ truck, orderNumber }: { truck: Truck; orderNumber:
           <p className="font-display text-[1.75rem] leading-none font-bold tabular-nums">
             {formatDayLabel(order.pickupAt, tz)}, {formatTime(order.pickupAt, tz)}
           </p>
-          <p className="mt-2 font-semibold">{order.locationName}</p>
-          <p className="text-sm text-muted-foreground">{order.locationAddress}</p>
+          <p className="mt-2 font-semibold">{location.name}</p>
+          <p className="text-sm text-muted-foreground">
+            {location.addressLine}, {location.city}
+          </p>
         </div>
       </section>
 
       <section className="px-4 pt-8">
         <h2 className="font-display text-[1.5rem] leading-tight font-bold">Status</h2>
-        <ol className="mt-3 rounded-2xl bg-surface p-4">
-          {STEPS.map((step, i) => {
-            const done = i <= current;
-            return (
-              <li key={step.status} className="relative flex items-center gap-3 pb-5 last:pb-0">
-                {i < STEPS.length - 1 && (
-                  <span
-                    aria-hidden
-                    className={cn("absolute top-7 bottom-0 left-[0.8125rem] w-0.5", i < current ? "bg-brand" : "bg-border")}
-                  />
-                )}
-                <span
-                  className={cn(
-                    "relative z-10 flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold",
-                    done ? "bg-brand text-brand-foreground" : "bg-background text-muted-foreground ring-1 ring-border"
+        {cancelled ? (
+          <p className="mt-3 rounded-2xl bg-surface p-4">
+            This order was cancelled. If you were charged, you&apos;ll be refunded. Questions? Ask at the window.
+          </p>
+        ) : (
+          <ol className="mt-3 rounded-2xl bg-surface p-4">
+            {STEPS.map((step, i) => {
+              const done = i <= current;
+              return (
+                <li key={step.label} className="relative flex items-center gap-3 pb-5 last:pb-0">
+                  {i < STEPS.length - 1 && (
+                    <span
+                      aria-hidden
+                      className={cn("absolute top-7 bottom-0 left-[0.8125rem] w-0.5", i < current ? "bg-brand" : "bg-border")}
+                    />
                   )}
-                >
-                  {done ? <Check className="size-4" strokeWidth={3} /> : i + 1}
-                </span>
-                <span className={cn(done ? "font-semibold" : "text-muted-foreground")}>
-                  {step.label}
-                  {i === current && <span className="sr-only"> (current step)</span>}
-                </span>
-              </li>
-            );
-          })}
-        </ol>
+                  <span
+                    className={cn(
+                      "relative z-10 flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold",
+                      done ? "bg-brand text-brand-foreground" : "bg-background text-muted-foreground ring-1 ring-border"
+                    )}
+                  >
+                    {done ? <Check className="size-4" strokeWidth={3} /> : i + 1}
+                  </span>
+                  <span className={cn(done ? "font-semibold" : "text-muted-foreground")}>
+                    {step.label}
+                    {i === current && <span className="sr-only"> (current step)</span>}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+        )}
       </section>
 
       <section className="px-4 pt-8">
         <h2 className="font-display text-[1.5rem] leading-tight font-bold">Receipt</h2>
         <div className="mt-3 rounded-2xl bg-surface p-4 text-[0.9375rem]">
           <ul className="divide-y divide-border">
-            {order.lines.map((line, i) => (
-              <li key={i} className="flex justify-between gap-4 py-2.5 first:pt-0">
+            {order.lines.map((line) => (
+              <li key={line.id} className="flex justify-between gap-4 py-2.5 first:pt-0">
                 <div>
                   <p>
-                    <span className="tabular-nums">{line.quantity}×</span> {line.nameSnapshot}
+                    <span className="tabular-nums">{line.quantity}×</span> {line.name}
                   </p>
-                  {line.modifiersSnapshot.length > 0 && (
-                    <p className="text-sm text-muted-foreground">{line.modifiersSnapshot.join(", ")}</p>
+                  {line.modifiers.length > 0 && (
+                    <p className="text-sm text-muted-foreground">{line.modifiers.join(", ")}</p>
                   )}
                 </div>
                 <p className="tabular-nums">{formatCents(line.lineTotalCents)}</p>

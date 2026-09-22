@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, Minus, Plus, Trash2 } from "lucide-react";
@@ -10,8 +10,8 @@ import type { Location, Menu, PickupSlot, Service, Truck } from "@/lib/types";
 import { resolveLine, type ResolvedLine } from "@/lib/cart";
 import { applyBps, formatCents, orderTotals } from "@/lib/money";
 import { formatDayLabel, formatTime } from "@/lib/time";
-import { saveDemoOrder } from "@/lib/demo-order";
 import { cn } from "@/lib/utils";
+import { placeOrder } from "@/app/(storefront)/[truckSlug]/checkout/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,6 +40,8 @@ export function CheckoutForm({ truck, service, location, menu, slots }: Props) {
   const [phone, setPhone] = useState("");
   const [errors, setErrors] = useState<Errors>({});
   const [placed, setPlaced] = useState(false); // avoids flashing "empty" between clear() and navigation
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [placing, startPlacing] = useTransition();
 
   const resolved = lines.map((l) => resolveLine(menu, l)).filter((l): l is ResolvedLine => l !== null);
   const subtotal = resolved.reduce((sum, l) => sum + l.lineTotalCents, 0);
@@ -59,31 +61,27 @@ export function CheckoutForm({ truck, service, location, menu, slots }: Props) {
       return;
     }
 
-    // TODO(Stream C): replace with a Server Action that calls
-    // lib/orders/createOrder.ts (server-side pricing + slot reservation) and
-    // redirects to Stripe Checkout. Nothing here is trusted by the server.
-    const slot = slots.find((s) => s.id === slotId)!;
-    const orderNumber = `${String.fromCharCode(65 + Math.floor(Math.random() * 26))}${10 + Math.floor(Math.random() * 90)}`;
-    saveDemoOrder({
-      orderNumber,
-      truckSlug: truck.slug,
-      customerName: name.trim(),
-      pickupAt: slot.startsAt,
-      locationName: location.name,
-      locationAddress: `${location.addressLine}, ${location.city}`,
-      lines: resolved.map((l) => ({
-        nameSnapshot: l.item.name,
-        modifiersSnapshot: l.options.map((o) => o.name),
-        unitPriceCents: l.unitCents,
-        quantity: l.quantity,
-        lineTotalCents: l.lineTotalCents,
-      })),
-      ...totals,
-      placedAt: new Date().toISOString(),
+    // Send IDs and quantities only. The server reprices everything.
+    setServerError(null);
+    startPlacing(async () => {
+      const result = await placeOrder({
+        truckSlug: truck.slug,
+        serviceId: service.id,
+        pickupSlotId: slotId!,
+        tipBps,
+        customerName: name,
+        customerPhone: phone,
+        lines: resolved.map((l) => ({ menuItemId: l.menuItemId, optionIds: l.optionIds, quantity: l.quantity })),
+      });
+      if (!result.ok) {
+        setServerError(result.error);
+        router.refresh(); // pick up slots that filled or items that sold out meanwhile
+        return;
+      }
+      setPlaced(true);
+      clear();
+      router.push(`/${truck.slug}/order/${result.orderId}`);
     });
-    setPlaced(true);
-    clear();
-    router.push(`/${truck.slug}/order/${orderNumber}`);
   }
 
   return (
@@ -232,12 +230,17 @@ export function CheckoutForm({ truck, service, location, menu, slots }: Props) {
           </Section>
 
           <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur">
+            {serverError && (
+              <p role="alert" className="mx-auto mb-3 max-w-2xl text-sm font-medium text-destructive">
+                {serverError}
+              </p>
+            )}
             <Button
               type="submit"
-              disabled={slots.length === 0 || resolved.length === 0}
+              disabled={placing || slots.length === 0 || resolved.length === 0}
               className="mx-auto flex h-14 w-full max-w-2xl justify-between rounded-2xl px-5 text-base font-semibold"
             >
-              <span>Place order</span>
+              <span>{placing ? "Placing order…" : "Place order"}</span>
               <span className="tabular-nums">{formatCents(totals.totalCents)}</span>
             </Button>
           </div>

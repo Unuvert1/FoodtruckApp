@@ -4,7 +4,7 @@ White-label pre-ordering for food trucks. Each truck gets a branded storefront; 
 
 **The central entity is the `Service`**: one truck, at one location, from one time to another. Menu availability, pickup slots, capacity, and orders all hang off it. If a feature feels awkward to model, it probably belongs on a Service and isn't there yet.
 
-Status: customer storefront UI built on mock data (`lib/mock-data.ts`); no database, auth, or payments yet. Setup, env vars, and roadmap live in `README.md`.
+Status: storefront, vendor dashboard (service screen, menu management, settings), Clerk login, and order emails run on the real database. No Stripe yet: checkout marks orders paid immediately (see `lib/orders/markOrderPaid.ts`). Stops (Services) are seeded only; scheduling them from the dashboard isn't built. Setup, env vars, and roadmap live in `README.md`.
 
 ## Stack
 
@@ -12,19 +12,23 @@ Next.js 15 (App Router) · TypeScript · Tailwind + shadcn/ui · Postgres (Supab
 
 Customers have no accounts — guest checkout with name + phone.
 
+Prisma 7: the client is generated into `lib/generated/prisma` (gitignored; `npm install` runs `prisma generate`) and connects through the `pg` driver adapter in `lib/db.ts`. The CLI reads `prisma.config.ts`, which loads `.env.local` and uses `DIRECT_URL` for migrations. Clerk v7 (Core 3): `<SignedIn>`/`<SignedOut>` no longer exist; use `<Show when="signed-in">`.
+
 ## Data model
 
 Every tenant-scoped table carries `truckId`. Authoritative schema: `prisma/schema.prisma`.
 
 ```
-Truck          slug, name, timezone, branding(logo/color/hero), stripeAccountId,
-               stripeOnboarded, taxRateBps, platformFeeBps, customDomain?
+Truck          slug, name, tagline, timezone, logoUrl?, brandColor, brandColorForeground,
+               heroImageUrl?, stripeAccountId, stripeOnboarded, taxRateBps,
+               platformFeeBps, customDomain?, notificationEmail? (new-order emails)
 Membership     truckId, clerkUserId, role(OWNER|STAFF)
                — the tenancy boundary; Clerk only supplies user identity
 Location       truckId, name, addressLine, city, lat, lng, notes
 Service    ★   truckId, locationId, menuId, startsAt, endsAt,
                orderingOpensAt, orderingClosesAt, slotMinutes, ordersPerSlot,
-               status(DRAFT|PUBLISHED|LIVE|ENDED|CANCELLED)
+               status(DRAFT|PUBLISHED|LIVE|ENDED|CANCELLED),
+               orderCount — atomically incremented to hand out order numbers
 PickupSlot     serviceId, startsAt, capacity, bookedCount
                — real rows, generated when a Service is published
 Menu           truckId, name, isDefault → MenuSection(sortOrder) → MenuItem
@@ -72,25 +76,34 @@ Each exists because violating it causes an expensive or dangerous bug. Don't wor
 
 ```
 app/
-  (storefront)/[truckSlug]/     customer-facing, branded per truck
-  (dashboard)/dashboard/        vendor-facing, main app domain
-  api/webhooks/stripe/
+  (platform)/                   home page, /sign-in, /sign-up (Clerk)
+  (storefront)/[truckSlug]/     customer-facing, branded per truck; order status at /order/[orderId]
+  (dashboard)/dashboard/        vendor-facing; actions.ts holds every dashboard Server Action
+  api/webhooks/stripe/          (Stream C)
 lib/
-  tenant.ts                  ★ tenant resolution + access guard
-  pricing.ts                 ★ server-side total calculation
+  tenant.ts                  ★ tenant resolution + access guard + every tenant query
+  pricing.ts                 ★ server-side total calculation (pure; menu rows passed in)
   orders/createOrder.ts      ★ the single order-creation path
-  stripe.ts                    Stripe client + Connect helpers
+  orders/markOrderPaid.ts      PAID + vendor email; the Stripe webhook will call it
+  db.ts                        the one Prisma client (import only from tenant.ts / seed)
+  email.ts                     Resend; logs to the terminal without RESEND_API_KEY
+  stripe.ts                    Stripe client + Connect helpers (Stream C)
 components/ui/                 shadcn components
+components/{storefront,dashboard,platform}/
 prisma/schema.prisma, prisma/seed.ts
-middleware.ts                  subdomain / custom domain → truck slug rewrite
+middleware.ts                  Clerk (protects /dashboard); later: subdomain → truck slug rewrite
 ```
 
 The ★ files hold everything easy to get wrong. Read them before touching money or tenancy.
 
+Truck slugs share the top-level URL space with app routes, so onboarding reserves names like `dashboard` and `sign-in` (`RESERVED_SLUGS` in the dashboard actions). Add to it when adding a top-level route.
+
 ```ts
 getTruckFromRequest()   // storefront: slug or custom domain → Truck
-requireTruckAccess()    // dashboard: Clerk session → Membership → Truck, throws on mismatch
+requireTruckAccess()    // dashboard: Clerk session → Membership → Truck; redirects if none
 ```
+
+Dashboard code takes `truckId` only from `requireTruckAccess()`, never from a form field or URL, and every write in `lib/tenant.ts` filters by it (`updateMany({ where: { id, truckId } })`).
 
 Routing is path-based in dev (`localhost:3000/demo-truck`), subdomain-based in production via `middleware.ts`.
 
@@ -100,7 +113,7 @@ Routing is path-based in dev (`localhost:3000/demo-truck`), subdomain-based in p
 npm run dev / build / lint / test      # build before pushing anything substantial
 npx prisma migrate dev                 # after editing schema.prisma
 npx prisma studio                      # browse the DB in a GUI
-npx prisma db seed                     # reset demo data
+npx prisma db seed                     # rebuild demo truck data with fresh dates (keeps memberships)
 stripe listen --forward-to localhost:3000/api/webhooks/stripe
 ```
 

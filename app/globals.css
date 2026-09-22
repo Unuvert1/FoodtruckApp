@@ -14,6 +14,9 @@
   --color-surface: var(--surface);
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
+  --color-signal: var(--signal);
+  --color-signal-foreground: var(--signal-foreground);
+  --color-ready: var(--ready);
 
   --color-ring: var(--ring);
   --color-input: var(--input);
@@ -49,10 +52,17 @@
     line      #D9DDD6  hairlines
   The truck's color arrives as --brand / --brand-foreground, set per truck in
   app/(storefront)/[truckSlug]/layout.tsx, and drives --primary.
+
+  Platform-only (home page, dashboard):
+    signal    #F2B632  street-sign yellow: "needs you now" (new orders)
+    ready     #1F7A4D  order ready for pickup
 */
 :root {
   --brand: #22603f;
   --brand-foreground: #ffffff;
+  --signal: #f2b632;
+  --signal-foreground: #1d2733;
+  --ready: #1f7a4d;
 
   --background: #eceeef;
   --surface: #ffffff;
