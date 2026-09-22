@@ -52,6 +52,7 @@ Order status: `PENDING_PAYMENT → PAID → ACCEPTED → PREPARING → READY →
 - Store UTC, display in `Truck.timezone`.
 - Soft-delete menu items (`archivedAt`); order line items are snapshots, never re-joined to the live menu.
 - Stripe webhooks (when added) must be idempotent.
+- Don't edit this file unless the user explicitly asks.
 
 ## Commands
 
