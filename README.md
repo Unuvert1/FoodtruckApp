@@ -2,7 +2,7 @@
 
 **White-label pre-ordering platform for food trucks.** Each truck gets its own branded ordering site. Customers reserve a pickup window and pay ahead; vendors manage their menu, stock, locations, and schedule from a dashboard.
 
-> **Status:** pre-development. Design is complete and documented — no application code yet.
+> **Status:** in development. The customer storefront, vendor dashboard, login, and order emails work against a real database. Payments (Stripe) aren't wired up yet, so orders are marked paid without charging.
 
 ---
 
@@ -73,7 +73,7 @@ npm install
 cp .env.example .env.local     # PowerShell: Copy-Item .env.example .env.local
 ```
 
-Fill in `.env.local`, then:
+Fill in `.env.local` (at minimum `DATABASE_URL` and `DIRECT_URL`; Clerk runs in keyless mode without keys in development), then:
 
 ```bash
 npx prisma migrate dev
@@ -81,12 +81,15 @@ npx prisma db seed
 npm run dev
 ```
 
+To manage the demo truck: sign up at http://localhost:3000/sign-up, then choose **Manage the demo truck** on the setup screen. Re-run `npx prisma db seed` whenever you want fresh demo dates and orders.
+
 In a second terminal, so Stripe can reach your local webhook:
 
 ```bash
 stripe listen --forward-to localhost:3000/api/webhooks/stripe
 ```
 
+- Platform home page → http://localhost:3000
 - Seeded storefront → http://localhost:3000/demo-truck
 - Vendor dashboard → http://localhost:3000/dashboard
 
@@ -95,15 +98,22 @@ Test card: `4242 4242 4242 4242`, any future expiry, any CVC.
 ### Environment variables
 
 ```
-DATABASE_URL=                          # Supabase → Project Settings → Database
+DATABASE_URL=                          # Supabase → Connect → Transaction pooler (port 6543)
+DIRECT_URL=                            # Supabase → Connect → Session pooler (port 5432), for migrations
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
 CLERK_SECRET_KEY=
-STRIPE_SECRET_KEY=                     # test mode: sk_test_...
-STRIPE_WEBHOOK_SECRET=                 # printed by `stripe listen`
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+RESEND_API_KEY=                        # optional; without it, emails print to the terminal
+EMAIL_FROM=                            # optional; defaults to Resend's test sender
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+ALLOW_DEMO_TRUCK_JOIN=                 # "true" to offer the demo truck outside development
+STRIPE_SECRET_KEY=                     # test mode: sk_test_... (Stream C)
+STRIPE_WEBHOOK_SECRET=                 # printed by `stripe listen` (Stream C)
 BLOB_READ_WRITE_TOKEN=
-RESEND_API_KEY=
 ```
+
+`.env.example` has the same list with notes on where to find each value.
 
 `.env.local` is gitignored and must never be committed. Each developer uses their own Stripe test keys so webhook events don't cross.
 
@@ -152,12 +162,12 @@ Parallel streams, not sequential phases — pick things up whenever there's time
 <details>
 <summary><strong>Stream 0 — Foundation</strong> · blocks everything, do it together in one sitting</summary>
 
-- [ ] Next.js + TS + Tailwind + shadcn scaffold
-- [ ] `prisma/schema.prisma` + first migration against Supabase
-- [ ] Clerk wired far enough to log in and read a `clerkUserId`
-- [ ] `lib/tenant.ts` guard helpers
-- [ ] `prisma/seed.ts` — demo truck, menu, a week of services
-- [ ] `.env.example`
+- [x] Next.js + TS + Tailwind + shadcn scaffold
+- [x] `prisma/schema.prisma` + first migration against Supabase
+- [x] Clerk wired far enough to log in and read a `clerkUserId`
+- [x] `lib/tenant.ts` guard helpers
+- [x] `prisma/seed.ts` — demo truck, menu, a week of services
+- [x] `.env.example`
 
 Agree on the schema **together**. It's the contract between both streams and the one thing that's genuinely painful to change later.
 </details>
@@ -165,11 +175,12 @@ Agree on the schema **together**. It's the contract between both streams and the
 <details>
 <summary><strong>Stream A — Vendor side</strong> · parallel with B</summary>
 
-- [ ] Signup creates a `Truck` + `OWNER` `Membership`; dashboard shell and nav
-- [ ] Menu editor: sections, items, reordering, image upload
+- [x] Signup creates a `Truck` + `OWNER` `Membership`; dashboard shell and nav
+- [ ] Menu editor: sections, items, reordering, image upload (sections + items done; reordering and images to do)
 - [ ] Modifier groups and options
-- [ ] **Big one-tap in/out-of-stock toggle**, optimistic UI — a vendor hits this mid-service with greasy hands on a phone
-- [ ] Archive (soft-delete) items
+- [x] **Big one-tap in/out-of-stock toggle**, optimistic UI — a vendor hits this mid-service with greasy hands on a phone
+- [x] Archive (soft-delete) items
+- [x] New-order email to the vendor (Resend)
 - [ ] Location CRUD
 - [ ] Service creation: location, date, start/end, slot length, orders-per-slot
 - [ ] Week calendar + **"duplicate last week"** — trucks run repeating schedules, and re-entering them by hand is the tedium that loses us the customer
@@ -180,12 +191,12 @@ Agree on the schema **together**. It's the contract between both streams and the
 <details>
 <summary><strong>Stream B — Customer storefront</strong> · parallel with A</summary>
 
-- [ ] Branded landing page with **"where we are next"** above the fold
-- [ ] Upcoming services list, current one highlighted
-- [ ] Menu browse — sold-out items visibly disabled, not hidden
-- [ ] Cart with modifiers (client state, always re-validated server-side)
-- [ ] Pickup slot picker showing only slots with remaining capacity
-- [ ] Mobile-first throughout
+- [x] Branded landing page with **"where we are next"** above the fold
+- [x] Upcoming services list, current one highlighted
+- [x] Menu browse — sold-out items visibly disabled, not hidden
+- [x] Cart with modifiers (client state, always re-validated server-side)
+- [x] Pickup slot picker showing only slots with remaining capacity
+- [x] Mobile-first throughout
 
 Build against seeded data so you're never blocked on Stream A.
 </details>
@@ -194,19 +205,19 @@ Build against seeded data so you're never blocked on Stream A.
 <summary><strong>Stream C — Payments</strong> · needs A's services + B's cart</summary>
 
 - [ ] Stripe Connect Express onboarding via Account Links; block publishing until `stripeOnboarded`
-- [ ] `lib/pricing.ts` — recompute every total server-side
-- [ ] Create `Order` as `PENDING_PAYMENT` **and** reserve the slot in one transaction
+- [x] `lib/pricing.ts` — recompute every total server-side
+- [x] Create `Order` as `PENDING_PAYMENT` **and** reserve the slot in one transaction
 - [ ] Checkout Session — destination charge to the truck, `application_fee_amount` for our cut
 - [ ] Webhook `checkout.session.completed` → `PAID`, deduped on `stripeEventId`
 - [ ] Sweep releasing slots held by `PENDING_PAYMENT` orders older than ~15 min
-- [ ] Tip selection at checkout — trucks depend on tips
-- [ ] Flat `taxRateBps` per truck (real multi-jurisdiction tax is out of scope; Stripe Tax later)
+- [x] Tip selection at checkout — trucks depend on tips
+- [x] Flat `taxRateBps` per truck (real multi-jurisdiction tax is out of scope; Stripe Tax later)
 </details>
 
 <details>
 <summary><strong>Stream D — Order flow</strong> · needs C &nbsp;|&nbsp; <strong>Stream E — Polish</strong> · anytime</summary>
 
-**D:** vendor order queue grouped by slot with tap-to-advance · polling auto-refresh · customer status page at `/order/[orderNumber]` · emailed receipt via Resend
+**D:** ~~vendor order queue grouped by slot with tap-to-advance~~ (done) · ~~polling auto-refresh~~ (done) · ~~customer status page~~ (done, at `/[truckSlug]/order/[orderId]`) · emailed receipt to the customer via Resend
 
 **E:** empty/loading/error states · custom domain support · vendor analytics (orders + revenue per service) · accessibility and Lighthouse pass · ERD diagram for the writeup
 </details>
