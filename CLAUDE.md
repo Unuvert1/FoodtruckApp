@@ -103,6 +103,8 @@ getTruckFromRequest()   // storefront: slug or custom domain → Truck
 requireTruckAccess()    // dashboard: Clerk session → Membership → Truck; redirects if none
 ```
 
+`DEV_AUTH_BYPASS=true` in `.env.local` skips Clerk in development: `lib/dev-auth.ts` returns a fixed dev user who owns the demo truck. It's forced off when `NODE_ENV === "production"`. Get the user ID through `getUserId()` from `lib/dev-auth.ts`, never `auth()` directly, so the bypass keeps working.
+
 Dashboard code takes `truckId` only from `requireTruckAccess()`, never from a form field or URL, and every write in `lib/tenant.ts` filters by it (`updateMany({ where: { id, truckId } })`).
 
 Routing is path-based in dev (`localhost:3000/demo-truck`), subdomain-based in production via `middleware.ts`.

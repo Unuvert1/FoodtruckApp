@@ -6,8 +6,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { auth, currentUser } from "@clerk/nextjs/server";
 import { z } from "zod";
+import { getUserEmail, getUserId } from "@/lib/dev-auth";
 import {
   advanceOrderStatus,
   cancelOrder,
@@ -157,13 +157,8 @@ const truckSchema = z.object({
 
 export type CreateTruckResult = { ok: false; error: string; field?: "name" | "slug" | "timezone" };
 
-async function primaryEmail(): Promise<string | null> {
-  const user = await currentUser();
-  return user?.primaryEmailAddress?.emailAddress ?? null;
-}
-
 export async function createTruck(input: z.input<typeof truckSchema>): Promise<CreateTruckResult> {
-  const { userId } = await auth();
+  const userId = await getUserId();
   if (!userId) redirect("/sign-in");
   if (await userHasTruck(userId)) redirect("/dashboard");
 
@@ -177,18 +172,18 @@ export async function createTruck(input: z.input<typeof truckSchema>): Promise<C
     return { ok: false, error: "That address is taken. Try another.", field: "slug" };
   }
 
-  await createTruckForUser(userId, { ...parsed.data, notificationEmail: await primaryEmail() });
+  await createTruckForUser(userId, { ...parsed.data, notificationEmail: await getUserEmail() });
   redirect("/dashboard");
 }
 
 export async function joinDemo(): Promise<CreateTruckResult> {
-  const { userId } = await auth();
+  const userId = await getUserId();
   if (!userId) redirect("/sign-in");
   if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEMO_TRUCK_JOIN !== "true") {
     return { ok: false, error: "The demo truck isn't available here." };
   }
 
-  const joined = await joinDemoTruck(userId, await primaryEmail());
+  const joined = await joinDemoTruck(userId, await getUserEmail());
   if (!joined) return { ok: false, error: "The demo truck hasn't been seeded. Run: npx prisma db seed" };
   redirect("/dashboard");
 }

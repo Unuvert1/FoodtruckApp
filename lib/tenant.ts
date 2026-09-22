@@ -8,8 +8,8 @@
 import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
-import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
+import { DEV_AUTH_BYPASS, getUserId } from "@/lib/dev-auth";
 import { Prisma } from "@/lib/generated/prisma/client";
 import type { MembershipRole, OrderStatus } from "@/lib/generated/prisma/enums";
 import type {
@@ -160,17 +160,22 @@ export type TruckAccess = {
 /**
  * Dashboard: the signed-in user's truck, via their Membership. Redirects to
  * sign-in or onboarding when there isn't one. Dashboard code must take its
- * truckId from here, never from a form field or URL.
+ * truckId from here, never from a form field or URL. (With the dev login
+ * bypass on, the "user" is the demo truck's owner: see lib/dev-auth.ts.)
  */
 export const requireTruckAccess = cache(async (): Promise<TruckAccess> => {
-  const { userId } = await auth();
+  const userId = await getUserId();
   if (!userId) redirect("/sign-in");
 
-  const membership = await prisma.membership.findFirst({
-    where: { clerkUserId: userId },
-    orderBy: { createdAt: "asc" },
-    include: { truck: true },
-  });
+  const findMembership = () =>
+    prisma.membership.findFirst({
+      where: { clerkUserId: userId },
+      orderBy: { createdAt: "asc" },
+      include: { truck: true },
+    });
+  let membership = await findMembership();
+  // Dev login bypass: go straight to the demo truck instead of onboarding.
+  if (!membership && DEV_AUTH_BYPASS && (await joinDemoTruck(userId, null))) membership = await findMembership();
   if (!membership) redirect("/dashboard/onboarding");
 
   return {

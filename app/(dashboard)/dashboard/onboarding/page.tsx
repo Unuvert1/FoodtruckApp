@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@clerk/nextjs/server";
+import { getUserId } from "@/lib/dev-auth";
 import { userHasTruck } from "@/lib/tenant";
 import { Wordmark } from "@/components/platform/wordmark";
 import { OnboardingForm } from "@/components/dashboard/onboarding-form";
@@ -7,7 +7,7 @@ import { OnboardingForm } from "@/components/dashboard/onboarding-form";
 export const metadata = { title: "Set up your truck" };
 
 export default async function OnboardingPage() {
-  const { userId } = await auth();
+  const userId = await getUserId();
   if (!userId) redirect("/sign-in");
   if (await userHasTruck(userId)) redirect("/dashboard");
 

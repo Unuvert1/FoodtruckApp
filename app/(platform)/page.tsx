@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Show } from "@clerk/nextjs";
 import { Wordmark } from "@/components/platform/wordmark";
+import { DEV_AUTH_BYPASS } from "@/lib/dev-auth";
 
 export const metadata = {
   title: "FoodtruckApp: preorders for food trucks",
@@ -36,16 +37,24 @@ export default function HomePage() {
       <header className="mx-auto flex max-w-5xl items-center justify-between px-4 py-5">
         <Wordmark />
         <nav className="flex items-center gap-2">
-          <Show when="signed-out">
-            <Link href="/sign-in" className="rounded-lg px-3 py-2 text-sm font-semibold hover:bg-muted">
-              Log in
-            </Link>
-          </Show>
-          <Show when="signed-in">
+          {DEV_AUTH_BYPASS ? (
             <Link href="/dashboard" className="rounded-lg px-3 py-2 text-sm font-semibold hover:bg-muted">
               Open dashboard
             </Link>
-          </Show>
+          ) : (
+            <>
+              <Show when="signed-out">
+                <Link href="/sign-in" className="rounded-lg px-3 py-2 text-sm font-semibold hover:bg-muted">
+                  Log in
+                </Link>
+              </Show>
+              <Show when="signed-in">
+                <Link href="/dashboard" className="rounded-lg px-3 py-2 text-sm font-semibold hover:bg-muted">
+                  Open dashboard
+                </Link>
+              </Show>
+            </>
+          )}
         </nav>
       </header>
 
