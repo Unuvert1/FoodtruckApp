@@ -163,7 +163,7 @@ Parallel streams, not sequential phases — pick things up whenever there's time
 <summary><strong>Stream 0 — Foundation</strong> · blocks everything, do it together in one sitting</summary>
 
 - [x] Next.js + TS + Tailwind + shadcn scaffold
-- [ ] `prisma/schema.prisma` + first migration against Supabase (schema done; migration runs once the Supabase keys are in)
+- [x] `prisma/schema.prisma` + first migration against Supabase
 - [x] Clerk wired far enough to log in and read a `clerkUserId`
 - [x] `lib/tenant.ts` guard helpers
 - [x] `prisma/seed.ts` — demo truck, menu, a week of services

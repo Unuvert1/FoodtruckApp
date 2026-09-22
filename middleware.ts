@@ -1,12 +1,10 @@
-// Clerk session handling for every request; the dashboard requires sign-in.
+// Clerk session handling for every request. Access control lives in the pages
+// and actions themselves (requireTruckAccess() in lib/tenant.ts), which is
+// what Clerk recommends over path matching in middleware.
 // TODO(later): subdomain / custom domain → truck slug rewrite goes here too.
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { clerkMiddleware } from "@clerk/nextjs/server";
 
-const isDashboard = createRouteMatcher(["/dashboard(.*)"]);
-
-export default clerkMiddleware(async (auth, req) => {
-  if (isDashboard(req)) await auth.protect();
-});
+export default clerkMiddleware();
 
 export const config = {
   matcher: [

@@ -5,7 +5,7 @@ import "server-only";
 import { Resend } from "resend";
 import type { OrderView, Truck } from "@/lib/types";
 import { formatCents } from "@/lib/money";
-import { formatDayLabel, formatTime } from "@/lib/time";
+import { formatWhen } from "@/lib/time";
 
 const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -22,9 +22,9 @@ export async function sendNewOrderEmail(input: {
     return;
   }
 
-  const pickup = `${formatDayLabel(order.pickupAt, truck.timezone)} at ${formatTime(order.pickupAt, truck.timezone)}`;
+  const pickup = formatWhen(order.pickupAt, truck.timezone); // "today at 12:15 pm"
   const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/dashboard`;
-  const subject = `New order ${order.orderNumber}: ${formatCents(order.totalCents)}, pickup ${pickup.toLowerCase()}`;
+  const subject = `New order ${order.orderNumber}: ${formatCents(order.totalCents)}, pickup ${pickup}`;
 
   const lineText = order.lines.map(
     (l) => `${l.quantity}× ${l.name}${l.modifiers.length ? ` (${l.modifiers.join(", ")})` : ""}  ${formatCents(l.lineTotalCents)}`

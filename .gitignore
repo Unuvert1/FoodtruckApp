@@ -49,3 +49,4 @@ Thumbs.db
 !.vscode/extensions.json
 
 /lib/generated/prisma
+.clerk/
