@@ -7,7 +7,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getUserEmail, getUserId } from "@/lib/dev-auth";
+import { DEMO_JOIN_ALLOWED, getUserEmail, getUserId } from "@/lib/dev-auth";
 import {
   advanceOrderStatus,
   cancelOrder,
@@ -179,9 +179,7 @@ export async function createTruck(input: z.input<typeof truckSchema>): Promise<C
 export async function joinDemo(): Promise<CreateTruckResult> {
   const userId = await getUserId();
   if (!userId) redirect("/sign-in");
-  if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEMO_TRUCK_JOIN !== "true") {
-    return { ok: false, error: "The demo truck isn't available here." };
-  }
+  if (!DEMO_JOIN_ALLOWED) return { ok: false, error: "The demo truck isn't available here." };
 
   const joined = await joinDemoTruck(userId, await getUserEmail());
   if (!joined) return { ok: false, error: "The demo truck hasn't been seeded. Run: npx prisma db seed" };

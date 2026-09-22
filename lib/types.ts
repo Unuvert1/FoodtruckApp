@@ -106,7 +106,6 @@ export type OrderView = {
   customerName: string;
   customerPhone: string;
   pickupAt: string;
-  placedAt: string;
   lines: {
     id: string;
     name: string;

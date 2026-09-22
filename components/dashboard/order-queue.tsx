@@ -9,6 +9,7 @@ import { formatTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { advanceOrder, cancelOrderAction } from "@/app/(dashboard)/dashboard/actions";
 import { Badge } from "@/components/dashboard/badge";
+import { ErrorBanner } from "@/components/dashboard/error-banner";
 
 type Change = { id: string; status: OrderStatus };
 
@@ -68,11 +69,7 @@ export function OrderQueue({ truck, orders }: { truck: Truck; orders: OrderView[
         </p>
       </div>
 
-      {error && (
-        <p role="alert" className="mt-3 rounded-xl bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">
-          {error}
-        </p>
-      )}
+      <ErrorBanner message={error} className="mt-3" />
 
       {active.length === 0 ? (
         <div className="mt-4 rounded-2xl border border-dashed border-border px-5 py-10 text-center">

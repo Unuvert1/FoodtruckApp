@@ -11,7 +11,8 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { DEV_AUTH_BYPASS, getUserId } from "@/lib/dev-auth";
 import { Prisma } from "@/lib/generated/prisma/client";
-import type { MembershipRole, OrderStatus } from "@/lib/generated/prisma/enums";
+import type { MembershipRole, OrderStatus, ServiceStatus } from "@/lib/generated/prisma/enums";
+import { ACTIVE_STATUSES } from "@/lib/orders/status";
 import type {
   Location,
   ManagedSection,
@@ -29,6 +30,9 @@ type Tx = Prisma.TransactionClient;
 
 /** Customers can't book a slot that starts sooner than this. */
 const SLOT_LEAD_MS = 10 * 60 * 1000;
+
+/** Services customers can see and order from. DRAFT, ENDED, and CANCELLED stay hidden. */
+const VISIBLE_SERVICE_STATUSES: ServiceStatus[] = ["PUBLISHED", "LIVE"];
 
 // ─── Row → view mappers ────────────────────────────────────────────────────
 
@@ -71,6 +75,14 @@ function toService(row: Prisma.ServiceGetPayload<object>): Service {
     ordersPerSlot: row.ordersPerSlot,
     status: row.status,
   };
+}
+
+export type ServicesWithLocations = { services: Service[]; locations: Record<string, Location> };
+
+function toServicesWithLocations(rows: Prisma.ServiceGetPayload<{ include: { location: true } }>[]): ServicesWithLocations {
+  const locations: Record<string, Location> = {};
+  for (const row of rows) locations[row.locationId] = toLocation(row.location);
+  return { services: rows.map(toService), locations };
 }
 
 const itemInclude = {
@@ -127,7 +139,6 @@ function toOrderView(row: OrderRow): OrderView {
     customerName: row.customerName,
     customerPhone: row.customerPhone,
     pickupAt: row.pickupSlot.startsAt.toISOString(),
-    placedAt: row.placedAt.toISOString(),
     lines: row.lineItems.map((l) => ({
       id: l.id,
       name: l.nameSnapshot,
@@ -193,19 +204,14 @@ export async function userHasTruck(clerkUserId: string): Promise<boolean> {
 
 // ─── Storefront reads ──────────────────────────────────────────────────────
 
-export async function getUpcomingServices(
-  truckId: string,
-  now: Date
-): Promise<{ services: Service[]; locations: Record<string, Location> }> {
+export async function getUpcomingServices(truckId: string, now: Date): Promise<ServicesWithLocations> {
   const rows = await prisma.service.findMany({
-    where: { truckId, status: { in: ["PUBLISHED", "LIVE"] }, endsAt: { gt: now } },
+    where: { truckId, status: { in: VISIBLE_SERVICE_STATUSES }, endsAt: { gt: now } },
     orderBy: { startsAt: "asc" },
     take: 8,
     include: { location: true },
   });
-  const locations: Record<string, Location> = {};
-  for (const row of rows) locations[row.locationId] = toLocation(row.location);
-  return { services: rows.map(toService), locations };
+  return toServicesWithLocations(rows);
 }
 
 export async function getServiceWithLocation(
@@ -213,7 +219,7 @@ export async function getServiceWithLocation(
   serviceId: string
 ): Promise<{ service: Service; location: Location } | null> {
   const row = await prisma.service.findFirst({
-    where: { id: serviceId, truckId, status: { in: ["PUBLISHED", "LIVE"] } },
+    where: { id: serviceId, truckId, status: { in: VISIBLE_SERVICE_STATUSES } },
     include: { location: true },
   });
   return row ? { service: toService(row), location: toLocation(row.location) } : null;
@@ -283,7 +289,7 @@ export function withTransaction<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
 
 export async function getOrderingContext(tx: Tx, truckId: string, serviceId: string) {
   const service = await tx.service.findFirst({
-    where: { id: serviceId, truckId, status: { in: ["PUBLISHED", "LIVE"] } },
+    where: { id: serviceId, truckId, status: { in: VISIBLE_SERVICE_STATUSES } },
     include: { truck: true },
   });
   if (!service) return null;
@@ -370,23 +376,18 @@ export async function getOrderNotification(truckId: string, orderId: string) {
 // ─── Dashboard: service screen ─────────────────────────────────────────────
 
 /** Services a vendor might be working: anything not long finished, soonest first. */
-export async function getDashboardServices(
-  truckId: string,
-  now: Date
-): Promise<{ services: Service[]; locations: Record<string, Location> }> {
+export async function getDashboardServices(truckId: string, now: Date): Promise<ServicesWithLocations> {
   const rows = await prisma.service.findMany({
     where: {
       truckId,
-      status: { in: ["PUBLISHED", "LIVE"] },
+      status: { in: VISIBLE_SERVICE_STATUSES },
       endsAt: { gt: new Date(now.getTime() - 2 * 60 * 60 * 1000) },
     },
     orderBy: { startsAt: "asc" },
     take: 10,
     include: { location: true },
   });
-  const locations: Record<string, Location> = {};
-  for (const row of rows) locations[row.locationId] = toLocation(row.location);
-  return { services: rows.map(toService), locations };
+  return toServicesWithLocations(rows);
 }
 
 /** Paid orders for one service, in pickup order. Unpaid checkouts aren't the kitchen's business yet. */
@@ -421,13 +422,11 @@ export async function advanceOrderStatus(
   return count === 1;
 }
 
-const CANCELLABLE: OrderStatus[] = ["PAID", "ACCEPTED", "PREPARING", "READY"];
-
-/** Cancel an order and give its pickup-slot seat back. */
+/** Cancel an active order and give its pickup-slot seat back. */
 export async function cancelOrder(truckId: string, orderId: string): Promise<boolean> {
   return prisma.$transaction(async (tx) => {
     const order = await tx.order.findFirst({
-      where: { id: orderId, truckId, status: { in: CANCELLABLE } },
+      where: { id: orderId, truckId, status: { in: ACTIVE_STATUSES } },
       select: { pickupSlotId: true, status: true },
     });
     if (!order) return false;

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getUserId } from "@/lib/dev-auth";
+import { DEMO_JOIN_ALLOWED, getUserId } from "@/lib/dev-auth";
 import { userHasTruck } from "@/lib/tenant";
 import { Wordmark } from "@/components/platform/wordmark";
 import { OnboardingForm } from "@/components/dashboard/onboarding-form";
@@ -11,7 +11,6 @@ export default async function OnboardingPage() {
   if (!userId) redirect("/sign-in");
   if (await userHasTruck(userId)) redirect("/dashboard");
 
-  const demoAllowed = process.env.NODE_ENV !== "production" || process.env.ALLOW_DEMO_TRUCK_JOIN === "true";
   const appHost = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/^https?:\/\//, "");
 
   return (
@@ -21,7 +20,7 @@ export default async function OnboardingPage() {
       <p className="mt-3 text-muted-foreground">
         This creates your ordering page and dashboard. You can add your menu right after.
       </p>
-      <OnboardingForm appHost={appHost} demoAllowed={demoAllowed} />
+      <OnboardingForm appHost={appHost} demoAllowed={DEMO_JOIN_ALLOWED} />
     </main>
   );
 }

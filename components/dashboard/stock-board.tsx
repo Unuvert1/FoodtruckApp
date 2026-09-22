@@ -4,6 +4,7 @@ import { useOptimistic, useState, useTransition } from "react";
 import type { ManagedSection } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { setStock } from "@/app/(dashboard)/dashboard/actions";
+import { ErrorBanner } from "@/components/dashboard/error-banner";
 
 /**
  * One big tap target per item: in stock ↔ sold out. Flips instantly and saves
@@ -30,11 +31,7 @@ export function StockBoard({ sections }: { sections: ManagedSection[] }) {
     <div className="md:sticky md:top-4">
       <h1 className="font-display text-[2rem] leading-none font-extrabold md:text-[1.75rem]">Stock</h1>
       <p className="mt-1 text-sm text-muted-foreground">Tap an item to mark it sold out. Customers see it right away.</p>
-      {error && (
-        <p role="alert" className="mt-3 rounded-xl bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">
-          {error}
-        </p>
-      )}
+      <ErrorBanner message={error} className="mt-3" />
 
       {sections.map((section) => (
         <div key={section.id} className="mt-5">

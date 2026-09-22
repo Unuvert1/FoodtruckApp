@@ -46,11 +46,11 @@ export default async function StorefrontPage({ params, searchParams }: Props) {
   ]);
   if (!menu) notFound();
 
-  const window = orderingWindow(selected, now);
+  const ordering = orderingWindow(selected, now);
   const closedReason =
-    window === "not-yet"
+    ordering === "not-yet"
       ? `Preorders for this stop open ${formatWhen(selected.orderingOpensAt, truck.timezone, now)}.`
-      : window === "closed"
+      : ordering === "closed"
         ? "Online ordering has closed for this stop."
         : null;
 
@@ -71,7 +71,7 @@ export default async function StorefrontPage({ params, searchParams }: Props) {
           selectedId={selected.id}
           now={now}
         />
-        <MenuList menu={menu} canOrder={window === "open"} closedReason={closedReason} />
+        <MenuList menu={menu} canOrder={ordering === "open"} closedReason={closedReason} />
         <StorefrontFooter truck={truck} />
       </main>
       <OrderBar menu={menu} checkoutHref={`/${truck.slug}/checkout?service=${selected.id}`} />

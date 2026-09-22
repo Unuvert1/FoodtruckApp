@@ -18,7 +18,7 @@ type Props = {
 export function ServiceHero({ truck, service, location, firstSlot, now }: Props) {
   const tz = truck.timezone;
   const live = isHappeningNow(service, now);
-  const window = orderingWindow(service, now);
+  const ordering = orderingWindow(service, now);
 
   return (
     <section
@@ -73,7 +73,7 @@ export function ServiceHero({ truck, service, location, firstSlot, now }: Props)
         </div>
 
         <div className="mt-8">
-          {window === "open" && (
+          {ordering === "open" && (
             <>
               <p className="text-[0.9375rem] leading-snug opacity-90">
                 Taking orders until {formatTime(service.orderingClosesAt, tz)}.
@@ -87,12 +87,12 @@ export function ServiceHero({ truck, service, location, firstSlot, now }: Props)
               </a>
             </>
           )}
-          {window === "not-yet" && (
+          {ordering === "not-yet" && (
             <p className="text-[0.9375rem] leading-snug opacity-90">
               Preorders open {formatWhen(service.orderingOpensAt, tz, now)}. Have a look at the menu until then.
             </p>
           )}
-          {window === "closed" && (
+          {ordering === "closed" && (
             <p className="text-[0.9375rem] leading-snug opacity-90">
               Online ordering has closed for this stop. Come say hi at the window.
             </p>

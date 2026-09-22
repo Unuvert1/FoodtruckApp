@@ -9,6 +9,7 @@ import { addSection, setArchived } from "@/app/(dashboard)/dashboard/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ItemFormSheet } from "@/components/dashboard/item-form-sheet";
+import { ErrorBanner } from "@/components/dashboard/error-banner";
 
 type Editing = { item: ManagedItem | null; sectionId: string } | null;
 
@@ -42,11 +43,7 @@ export function MenuManager({ sections }: { sections: ManagedSection[] }) {
         Changes show on your ordering page right away. Removed items can be restored from the bottom of this page.
       </p>
 
-      {error && (
-        <p role="alert" className="mt-4 rounded-xl bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">
-          {error}
-        </p>
-      )}
+      <ErrorBanner message={error} className="mt-4" />
 
       {sections.map((section) => {
         const items = section.items.filter((i) => !i.archived);

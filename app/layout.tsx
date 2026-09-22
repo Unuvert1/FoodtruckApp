@@ -6,7 +6,6 @@ const display = Big_Shoulders({
   variable: "--font-display",
   subsets: ["latin"],
   axes: ["opsz"],
-  adjustFontFallback: false, // Next has no fallback metrics for this family yet
 });
 
 const body = Figtree({

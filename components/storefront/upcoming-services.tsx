@@ -27,12 +27,12 @@ export function UpcomingServices({ truck, services, locations, selectedId, now }
           const location = locations[service.locationId];
           const { weekday, day } = formatDayParts(service.startsAt, tz);
           const selected = service.id === selectedId;
-          const window = orderingWindow(service, now);
+          const ordering = orderingWindow(service, now);
 
           let availability: string;
           if (isHappeningNow(service, now)) availability = "Open now";
-          else if (window === "open") availability = "Preorder";
-          else if (window === "not-yet") availability = `Orders open ${formatWhen(service.orderingOpensAt, tz, now)}`;
+          else if (ordering === "open") availability = "Preorder";
+          else if (ordering === "not-yet") availability = `Orders open ${formatWhen(service.orderingOpensAt, tz, now)}`;
           else availability = "Ordering closed";
 
           return (
@@ -56,7 +56,7 @@ export function UpcomingServices({ truck, services, locations, selectedId, now }
                   <p className="text-sm text-muted-foreground tabular-nums">
                     {formatTimeRange(service.startsAt, service.endsAt, tz)}
                   </p>
-                  <p className={cn("mt-0.5 text-sm", window === "open" ? "font-medium text-brand" : "text-muted-foreground")}>
+                  <p className={cn("mt-0.5 text-sm", ordering === "open" ? "font-medium text-brand" : "text-muted-foreground")}>
                     {availability}
                   </p>
                 </div>
