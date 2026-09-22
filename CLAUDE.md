@@ -4,7 +4,7 @@ White-label pre-ordering for food trucks. Each truck gets a branded storefront; 
 
 **The central entity is the `Service`**: one truck, at one location, from one time to another. Menu availability, pickup slots, capacity, and orders all hang off it. If a feature feels awkward to model, it probably belongs on a Service and isn't there yet.
 
-Status: pre-development, no app code yet. Setup, env vars, and roadmap live in `README.md`.
+Status: customer storefront UI built on mock data (`lib/mock-data.ts`); no database, auth, or payments yet. Setup, env vars, and roadmap live in `README.md`.
 
 ## Stack
 
@@ -108,6 +108,7 @@ Stripe test card `4242 4242 4242 4242`, any future expiry, any CVC.
 
 ## Git
 
+- **Never push or merge to `main` without explicit permission from the user.** All work goes on a branch; `main` only changes through a PR both devs have agreed on. This includes force-pushes, which can wipe out the other person's work.
 - Short-lived `feature/*` branches off `main`, merged via PR.
 - Whoever edits `schema.prisma` commits the generated migration; the other runs `npx prisma migrate dev` after pulling.
 - Never hand-edit a migration that's already been pushed — write a new one.
