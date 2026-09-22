@@ -108,6 +108,7 @@ Stripe test card `4242 4242 4242 4242`, any future expiry, any CVC.
 
 ## Git
 
+- **Never push or merge to `main` without explicit permission from the user.** All work goes on a branch; `main` only changes through a PR both devs have agreed on. This includes force-pushes, which can wipe out the other person's work.
 - Short-lived `feature/*` branches off `main`, merged via PR.
 - Whoever edits `schema.prisma` commits the generated migration; the other runs `npx prisma migrate dev` after pulling.
 - Never hand-edit a migration that's already been pushed — write a new one.
