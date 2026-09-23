@@ -279,7 +279,7 @@ The things that will actually bite. Mitigations are enforced as rules in [`CLAUD
 
 **Rules:**
 
-- Nothing reaches `main` without a reviewed PR. No force-pushes, ever.
+- Nothing reaches `main` without a reviewed PR, and never force-push `main` or a branch someone else is working on.
 - Use **Rebase and merge** in the one case where you open a PR containing someone else's commits — it keeps the original author.
 - When you genuinely pair on a commit, credit both:
   ```

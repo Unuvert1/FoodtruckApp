@@ -40,7 +40,8 @@ _(GitHub/PR activity report. The Jira report for this sprint is a separate file:
 
 | Metric | Value |
 |---|---|
-| Total commits on `main` | 13 |
+| Commits on `main` | 4 (each merged PR is squashed into one commit) |
+| Commits written across the merged PRs | 13 |
 | First commit | 2026-09-21 |
 | Last commit | 2026-09-22 |
 
