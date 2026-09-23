@@ -269,9 +269,30 @@ The things that will actually bite. Mitigations are enforced as rules in [`CLAUD
 
 ## Contributing
 
-- Short-lived `feature/*` branches off `main`, merged via pull request
-- Whoever edits `schema.prisma` commits the generated migration; everyone else runs `npx prisma migrate dev` after pulling
-- Never hand-edit a migration that's already been pushed — write a new one
+**The loop, every time:**
+
+1. `git checkout main && git pull`
+2. `git checkout -b feature/your-thing` — one branch per feature, kept small
+3. Commit, push, then **open the pull request yourself**. Whoever wrote the code opens the PR: with squash merging, GitHub credits the squashed commit to whoever opened it, so opening each other's PRs erases the real author.
+4. The other person reviews and approves
+5. **Squash and merge**, then delete the branch
+
+**Rules:**
+
+- Nothing reaches `main` without a reviewed PR. No force-pushes, ever.
+- Use **Rebase and merge** in the one case where you open a PR containing someone else's commits — it keeps the original author.
+- When you genuinely pair on a commit, credit both:
+  ```
+  Co-authored-by: Name <email@rangers.uwp.edu>
+  ```
+- Set your Git identity once per machine so your commits link to your GitHub account:
+  ```
+  git config user.name "Your Name"
+  git config user.email "your-github-email"
+  ```
+- Whoever edits `schema.prisma` commits the generated migration; the other runs `npx prisma migrate dev` after pulling. Agree who owns the schema for a feature — parallel migrations are the one thing that really hurts.
+- Never hand-edit a migration that's already been pushed — write a new one.
+- We share one Supabase database in development. `npx prisma db seed` wipes and rebuilds the demo truck's data, so say so in chat before running it.
 
 ---
 
