@@ -79,6 +79,12 @@ const itemSchema = z.object({
   name: z.string().trim().min(1, "Give the item a name.").max(80, "Keep the name under 80 characters."),
   description: z.string().trim().max(300, "Keep the description under 300 characters."),
   price: z.string().max(20),
+  // Only a URL this app issued. /api/uploads returns /api/photos/<id>; anything
+  // else means the value didn't come from our upload route.
+  imageUrl: z
+    .string()
+    .regex(/^\/api\/photos\/[a-z0-9]{1,40}$/)
+    .nullable(),
   isAvailable: z.boolean(),
 });
 
@@ -100,8 +106,8 @@ export async function saveMenuItem(input: z.input<typeof itemSchema>): Promise<S
     return { ok: false, error: "Enter a price like 12.50.", field: "price" };
   }
 
-  const { itemId, sectionId, name, description, isAvailable } = parsed.data;
-  const data = { sectionId, name, description, isAvailable, priceCents };
+  const { itemId, sectionId, name, description, imageUrl, isAvailable } = parsed.data;
+  const data = { sectionId, name, description, imageUrl, isAvailable, priceCents };
   const saved = itemId ? await updateMenuItem(truck.id, itemId, data) : await createMenuItem(truck.id, data);
   refresh(truck.slug);
   return saved ? { ok: true } : fail("That section or item no longer exists.");

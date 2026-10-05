@@ -61,7 +61,7 @@ export function OrderQueue({ truck, orders }: { truck: Truck; orders: OrderView[
   return (
     <div>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
-        <h1 className="font-display text-[2rem] leading-none font-extrabold">Orders</h1>
+        <h1 className="text-[2rem] leading-none font-semibold tracking-[-0.03em]">Orders</h1>
         <p className="flex flex-wrap gap-1.5 text-sm">
           {count("PAID") > 0 && <Badge tone="signal">{count("PAID")} new</Badge>}
           {inProgress > 0 && <Badge tone="muted">{inProgress} in progress</Badge>}
@@ -80,7 +80,7 @@ export function OrderQueue({ truck, orders }: { truck: Truck; orders: OrderView[
         [...groups.entries()].map(([pickupAt, tickets]) => (
           <section key={pickupAt} className="mt-6">
             <h2 className="mb-2 flex items-baseline gap-2">
-              <span className="font-display text-2xl font-bold tabular-nums">{formatTime(pickupAt, truck.timezone)}</span>
+              <span className="text-[1.375rem] font-semibold tracking-[-0.02em] tabular-nums">{formatTime(pickupAt, truck.timezone)}</span>
               <span className="text-sm text-muted-foreground">
                 pickup, {tickets.length} {tickets.length === 1 ? "order" : "orders"}
               </span>
@@ -100,7 +100,7 @@ export function OrderQueue({ truck, orders }: { truck: Truck; orders: OrderView[
           <ul className="divide-y divide-border border-t border-border">
             {done.map((o) => (
               <li key={o.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-                <span className="w-10 font-display text-lg font-bold">{o.orderNumber}</span>
+                <span className="w-10 text-base font-semibold tabular-nums">{o.orderNumber}</span>
                 <span className="flex-1 truncate">{o.customerName}</span>
                 <span className="text-muted-foreground">{STATUS_LABEL[o.status]}</span>
                 <span className="w-16 text-right tabular-nums">{formatCents(o.totalCents)}</span>
@@ -129,7 +129,7 @@ function Ticket({ order, onAdvance, onCancel }: { order: OrderView; onAdvance: (
     >
       {isNew && <div aria-hidden className="h-2 rounded-t-2xl bg-signal" />}
       <div className="flex items-start gap-3 px-4 pt-3">
-        <p className="font-display text-[2.25rem] leading-none font-extrabold tabular-nums">{order.orderNumber}</p>
+        <p className="text-[2.25rem] leading-none font-semibold tracking-[-0.03em] tabular-nums">{order.orderNumber}</p>
         <div className="min-w-0 flex-1 pt-0.5">
           <p className="truncate font-semibold">{order.customerName}</p>
           <p className="text-sm text-muted-foreground">{STATUS_LABEL[order.status]}</p>

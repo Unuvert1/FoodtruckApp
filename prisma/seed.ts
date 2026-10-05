@@ -1,4 +1,4 @@
-// Demo data: Comal Taqueria at /demo-truck, with a menu, four stops, and a few
+// Demo data: Ranger Truck at /demo-truck, with a menu, four stops, and a few
 // orders in the queue. Safe to re-run: it rebuilds the demo truck's data with
 // fresh dates (today's stop runs 8 am–10 pm truck time, so a demo works any
 // time that day) and keeps anyone who has joined the truck as an owner.
@@ -181,7 +181,7 @@ async function main() {
   const now = new Date();
 
   const truckData = {
-    name: "Comal Taqueria",
+    name: "Ranger Truck",
     tagline: "Birria, al pastor, and handmade tortillas off the comal.",
     timezone: TZ,
     brandColor: "#22603F",

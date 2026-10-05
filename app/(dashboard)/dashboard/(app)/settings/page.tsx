@@ -9,12 +9,12 @@ export default async function SettingsPage() {
 
   return (
     <main className="mx-auto max-w-2xl px-4 pt-6 pb-16">
-      <h1 className="font-display text-[2.25rem] leading-none font-extrabold">Settings</h1>
+      <h1 className="text-[2rem] leading-none font-semibold tracking-[-0.03em]">Settings</h1>
 
       <SettingsForm notificationEmail={notificationEmail} />
 
       <section className="mt-8 rounded-2xl bg-surface p-5">
-        <h2 className="font-display text-xl font-bold">Your truck</h2>
+        <h2 className="text-[1.0625rem] font-semibold tracking-[-0.01em]">Your truck</h2>
         <dl className="mt-3 space-y-3 text-[0.9375rem]">
           <div>
             <dt className="text-sm text-muted-foreground">Ordering page</dt>

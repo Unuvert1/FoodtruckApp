@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
+import { PhotoField } from "@/components/dashboard/photo-field";
 
 type Props = {
   editing: { item: ManagedItem | null; sectionId: string } | null;
@@ -48,6 +49,7 @@ function ItemForm({
   const [name, setName] = useState(item?.name ?? "");
   const [description, setDescription] = useState(item?.description ?? "");
   const [price, setPrice] = useState(item ? centsToInput(item.priceCents) : "");
+  const [imageUrl, setImageUrl] = useState<string | null>(item?.imageUrl ?? null);
   const [sectionId, setSectionId] = useState(defaultSectionId);
   const [isAvailable, setIsAvailable] = useState(item?.isAvailable ?? true);
   const [result, setResult] = useState<SaveItemResult | null>(null);
@@ -60,7 +62,7 @@ function ItemForm({
   function submit(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
-      const saved = await saveMenuItem({ itemId: item?.id, sectionId, name, description, price, isAvailable });
+      const saved = await saveMenuItem({ itemId: item?.id, sectionId, name, description, price, imageUrl, isAvailable });
       setResult(saved);
       if (saved.ok) onSaved();
     });
@@ -69,7 +71,7 @@ function ItemForm({
   return (
     <form onSubmit={submit} noValidate className="flex min-h-full flex-col">
       <div className="px-5 pt-6">
-        <SheetTitle className="font-display text-[1.875rem] leading-none font-bold">
+        <SheetTitle className="text-[1.6rem] leading-tight font-semibold tracking-[-0.02em]">
           {item ? "Edit item" : "Add item"}
         </SheetTitle>
         <SheetDescription className="mt-2">
@@ -78,6 +80,8 @@ function ItemForm({
       </div>
 
       <div className="flex-1 space-y-5 px-5 py-6">
+        <PhotoField value={imageUrl} onChange={setImageUrl} />
+
         <Field label="Name" htmlFor="item-name" error={fieldError("name")}>
           <Input
             id="item-name"

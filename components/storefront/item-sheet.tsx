@@ -78,23 +78,28 @@ function ItemSheetBody({
 
   return (
     <>
-      <div className="overflow-y-auto px-5 pt-6 pb-4">
-        <div aria-hidden className="mx-auto -mt-3 mb-4 h-1 w-10 rounded-full bg-border" />
-        <ItemPhoto src={item.imageUrl} alt={item.name} className="mb-4 aspect-[16/9] w-full rounded-2xl" />
-        <SheetTitle className="pr-8 font-display text-[1.875rem] leading-[1.05] font-bold">{item.name}</SheetTitle>
-        {item.description && (
-          <SheetDescription className="mt-2 text-[0.9375rem] leading-relaxed">{item.description}</SheetDescription>
-        )}
-        <p className="mt-2 font-medium tabular-nums">{formatCents(item.priceCents)}</p>
+      <div className="overflow-y-auto pb-4">
+        <div aria-hidden className="mx-auto mt-3 mb-4 h-1 w-10 rounded-full bg-border" />
+        {/* Full-bleed: the dish is the first thing you see. ItemPhoto renders
+            nothing when there is no photo, so the sheet just opens on the name. */}
+        <ItemPhoto src={item.imageUrl} alt="" className="aspect-[16/9] w-full" />
 
-        {item.modifierGroups.map((group) => (
-          <ModifierGroupField
-            key={group.id}
-            group={group}
-            value={selections[group.id] ?? []}
-            onChange={(ids) => setSelections((s) => ({ ...s, [group.id]: ids }))}
-          />
-        ))}
+        <div className="px-5 pt-5">
+          <SheetTitle className="pr-8 font-display text-[1.875rem] leading-[1.05] font-bold">{item.name}</SheetTitle>
+          {item.description && (
+            <SheetDescription className="mt-2 text-[0.9375rem] leading-relaxed">{item.description}</SheetDescription>
+          )}
+          <p className="mt-2 font-medium tabular-nums">{formatCents(item.priceCents)}</p>
+
+          {item.modifierGroups.map((group) => (
+            <ModifierGroupField
+              key={group.id}
+              group={group}
+              value={selections[group.id] ?? []}
+              onChange={(ids) => setSelections((s) => ({ ...s, [group.id]: ids }))}
+            />
+          ))}
+        </div>
       </div>
 
       <div className="border-t border-border bg-surface px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">

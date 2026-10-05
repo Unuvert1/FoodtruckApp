@@ -12,7 +12,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <div className="min-h-dvh">
       <header className="border-b border-border bg-surface">
         <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 pt-3">
-          <p className="min-w-0 flex-1 truncate font-display text-2xl leading-tight font-extrabold">{truck.name}</p>
+          <p className="min-w-0 flex-1 truncate text-[1.375rem] leading-tight font-semibold tracking-[-0.02em]">{truck.name}</p>
           <Link
             href={`/${truck.slug}`}
             target="_blank"

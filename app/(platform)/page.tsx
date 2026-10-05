@@ -87,7 +87,7 @@ export default function HomePage() {
               <h2 id="board-heading" className="font-display text-2xl font-bold sm:text-3xl">
                 This week&apos;s stops
               </h2>
-              <p className="text-sm text-background/60">Comal Taqueria</p>
+              <p className="text-sm text-background/60">Ranger Truck</p>
             </div>
             <ul className="divide-y divide-background/15">
               {WEEK.map((stop) => (

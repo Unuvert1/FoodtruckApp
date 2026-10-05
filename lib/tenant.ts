@@ -100,6 +100,7 @@ function toMenuItem(row: ItemRow): MenuItem {
     name: row.name,
     description: row.description,
     priceCents: row.priceCents,
+    imageUrl: row.imageUrl,
     isAvailable: row.isAvailable,
     imageUrl: row.imageUrl,
     modifierGroups: row.modifierGroups.map((g) => ({
@@ -491,6 +492,7 @@ export type MenuItemInput = {
   name: string;
   description: string;
   priceCents: number;
+  imageUrl: string | null;
   isAvailable: boolean;
 };
 
@@ -522,6 +524,30 @@ export async function createSection(truckId: string, name: string): Promise<bool
   const sortOrder = await prisma.menuSection.count({ where: { menuId } });
   await prisma.menuSection.create({ data: { menuId, name, sortOrder } });
   return true;
+}
+
+// ─── Dish photos ───────────────────────────────────────────────────────────
+
+/** Stores an uploaded dish photo and returns the URL to save on the item. */
+export async function createDishPhoto(
+  truckId: string,
+  photo: { contentType: string; width: number; height: number; bytes: Uint8Array<ArrayBuffer> }
+): Promise<string> {
+  const row = await prisma.dishPhoto.create({ data: { truckId, ...photo }, select: { id: true } });
+  return `/api/photos/${row.id}`;
+}
+
+/**
+ * One photo, for /api/photos/[id]. Not scoped to a truck on purpose: menu
+ * photos are public to anyone who can see the storefront, and the customer
+ * fetching one has no session. The id is the only thing needed, and it is
+ * already public in the storefront HTML.
+ */
+export async function getDishPhoto(photoId: string) {
+  return prisma.dishPhoto.findUnique({
+    where: { id: photoId },
+    select: { contentType: true, bytes: true },
+  });
 }
 
 // ─── Dashboard: settings & onboarding ──────────────────────────────────────

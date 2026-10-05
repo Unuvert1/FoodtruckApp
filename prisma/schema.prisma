@@ -66,6 +66,7 @@ model Truck {
   services    Service[]
   menus       Menu[]
   menuItems   MenuItem[]
+  dishPhotos  DishPhoto[]
   orders      Order[]
 }
 
@@ -183,6 +184,24 @@ model MenuItem {
 
   @@index([truckId])
   @@index([sectionId])
+}
+
+/// A dish photo, stored in the database and served by /api/photos/[id].
+/// Images are downscaled in the browser before upload, so rows stay small.
+/// Swapping to object storage later means writing a different URL into
+/// MenuItem.imageUrl — nothing else here changes.
+model DishPhoto {
+  id          String   @id @default(cuid())
+  truckId     String
+  contentType String
+  width       Int
+  height      Int
+  bytes       Bytes
+  createdAt   DateTime @default(now())
+
+  truck Truck @relation(fields: [truckId], references: [id], onDelete: Cascade)
+
+  @@index([truckId])
 }
 
 model ModifierGroup {

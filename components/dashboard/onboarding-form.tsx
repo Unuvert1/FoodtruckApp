@@ -63,7 +63,7 @@ export function OnboardingForm({ appHost, demoAllowed }: { appHost: string; demo
             id="truck-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Comal Taqueria"
+            placeholder="Taco Libre"
             aria-invalid={Boolean(errorFor("name"))}
             className="h-12 rounded-xl px-3.5 text-base"
           />
@@ -124,7 +124,7 @@ export function OnboardingForm({ appHost, demoAllowed }: { appHost: string; demo
         <div className="mt-6 rounded-2xl border border-dashed border-border p-5">
           <p className="font-semibold">Just trying things out?</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Manage the seeded demo truck, Comal Taqueria, with its menu and sample orders.
+            Manage the seeded demo truck, Ranger Truck, with its menu and sample orders.
           </p>
           <Button
             variant="outline"

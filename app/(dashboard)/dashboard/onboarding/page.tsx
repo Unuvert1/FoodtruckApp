@@ -16,7 +16,7 @@ export default async function OnboardingPage() {
   return (
     <main className="mx-auto max-w-lg px-4 py-8">
       <Wordmark />
-      <h1 className="mt-10 font-display text-[2.75rem] leading-none font-extrabold">Set up your truck</h1>
+      <h1 className="mt-10 text-[2.25rem] leading-none font-semibold tracking-[-0.03em]">Set up your truck</h1>
       <p className="mt-3 text-muted-foreground">
         This creates your ordering page and dashboard. You can add your menu right after.
       </p>

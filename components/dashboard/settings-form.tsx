@@ -18,7 +18,7 @@ export function SettingsForm({ notificationEmail }: { notificationEmail: string 
 
   return (
     <form onSubmit={submit} noValidate className="mt-6 rounded-2xl bg-surface p-5">
-      <h2 className="font-display text-xl font-bold">Order emails</h2>
+      <h2 className="text-[1.0625rem] font-semibold tracking-[-0.01em]">Order emails</h2>
       <p className="mt-1 text-sm text-muted-foreground">We email this address every time a new online order comes in.</p>
       <Label htmlFor="notify-email" className="mt-4 mb-2 font-semibold">
         Email address

@@ -29,7 +29,7 @@ export function StockBoard({ sections }: { sections: ManagedSection[] }) {
 
   return (
     <div className="md:sticky md:top-4">
-      <h1 className="font-display text-[2rem] leading-none font-extrabold md:text-[1.75rem]">Stock</h1>
+      <h1 className="text-[2rem] leading-none font-semibold tracking-[-0.03em] md:text-[1.75rem]">Stock</h1>
       <p className="mt-1 text-sm text-muted-foreground">Tap an item to mark it sold out. Customers see it right away.</p>
       <ErrorBanner message={error} className="mt-3" />
 
