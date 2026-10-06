@@ -21,9 +21,14 @@ export type Location = {
   name: string;
   addressLine: string;
   city: string;
-  lat: number;
-  lng: number;
-  notes: string | null;
+  region: string; // state/province; "" when unknown
+  postcode: string;
+  lat: number | null; // null when the vendor saved the spot without coordinates
+  lng: number | null;
+  notes: string | null; // parking note
+  provider: string; // "geoapify" | "photon" | "manual"
+  providerPlaceId: string | null;
+  archivedAt: string | null;
 };
 
 export type ServiceStatus = "DRAFT" | "PUBLISHED" | "LIVE" | "ENDED" | "CANCELLED";
@@ -39,6 +44,7 @@ export type Service = {
   slotMinutes: number;
   ordersPerSlot: number;
   status: ServiceStatus;
+  publicNote: string; // one-off note for this stop only; "" when none
 };
 
 export type PickupSlot = {
@@ -70,8 +76,8 @@ export type MenuItem = {
   name: string;
   description: string;
   priceCents: number;
+  imageUrl: string | null;
   isAvailable: boolean;
-  imageUrl?: string | null;
   modifierGroups: ModifierGroup[];
 };
 
@@ -100,24 +106,37 @@ export type OrderStatus =
   | "REFUNDED";
 
 /** An order as a customer or vendor sees it. Lines are the price snapshots taken at checkout. */
+export type OrderLine = {
+  id: string;
+  name: string;
+  quantity: number;
+  modifiers: string[]; // names only; the snapshot's price deltas stay server-side
+  unitPriceCents: number;
+  lineTotalCents: number;
+  voidedAt: string | null;
+  voidedReason: string | null;
+  voidedCents: number;
+};
+
 export type OrderView = {
   id: string;
   orderNumber: string;
   status: OrderStatus;
   customerName: string;
   customerPhone: string;
+  customerEmail: string | null;
   pickupAt: string;
-  lines: {
-    id: string;
-    name: string;
-    quantity: number;
-    modifiers: string[];
-    lineTotalCents: number;
-  }[];
+  placedAt: string;
+  acceptedAt: string | null;
+  readyAt: string | null;
+  pickedUpAt: string | null;
+  autoCompletedAt: string | null;
+  lines: OrderLine[];
   subtotalCents: number;
   taxCents: number;
   tipCents: number;
   totalCents: number;
+  refundedCents: number;
 };
 
 // ─── Dashboard ─────────────────────────────────────────────────────────────
@@ -132,4 +151,62 @@ export type ManagedSection = {
   id: string;
   name: string;
   items: ManagedItem[];
+};
+
+// ─── Dashboard settings ────────────────────────────────────────────────────
+// Kept apart from `Truck` on purpose: storefront components depend on that
+// shape, and these fields are for the vendor only.
+
+export type TruckSettings = {
+  name: string;
+  slug: string;
+  tagline: string;
+  logoUrl: string | null;
+  customDomain: string | null;
+  brandColor: string;
+  brandColorForeground: string;
+  heroImageUrl: string | null;
+  timezone: string;
+  taxRateBps: number;
+  platformFeeBps: number;
+  notificationEmail: string | null;
+  stripeAccountId: string | null;
+  stripeOnboarded: boolean;
+};
+
+export type OrderingDefaults = {
+  timezone: string;
+  defaultSlotMinutes: number;
+  defaultOrdersPerSlot: number;
+  orderingOpensHoursBefore: number;
+  orderingClosesMinutesBefore: number;
+  slotLeadMinutes: number;
+};
+
+export type PaymentStatus = { accountId: string | null; onboarded: boolean };
+
+export type TeamMember = {
+  id: string;
+  clerkUserId: string;
+  role: "OWNER" | "STAFF";
+  joinedAt: string;
+};
+
+// ─── Dashboard schedule ────────────────────────────────────────────────────
+
+/** A stop on the vendor's schedule, with how many live orders hang off it. */
+export type ScheduleRow = { service: Service; location: Location; orderCount: number };
+
+/** The stop form's values, in the wall-clock terms its inputs speak (the truck's timezone). */
+export type StopDraft = {
+  serviceId?: string; // present = editing that stop
+  locationId: string | null;
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:mm
+  endTime: string;
+  opensHoursBefore: number; // 0 = as soon as the stop is published
+  closesMinutesBefore: number;
+  slotMinutes: number;
+  ordersPerSlot: number;
+  publicNote: string;
 };

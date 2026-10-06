@@ -16,7 +16,30 @@
   --color-brand-foreground: var(--brand-foreground);
   --color-signal: var(--signal);
   --color-signal-foreground: var(--signal-foreground);
+  --color-new: var(--new);
+  --color-new-foreground: var(--new-foreground);
+  --color-new-tint: var(--new-tint);
+  --color-new-tint-strong: var(--new-tint-strong);
+  --color-new-pulse-peak: var(--new-pulse-peak);
+
+  /* POS dish tiles: a fixed pastel rotation, assigned by position. */
+  --color-dish-1: var(--dish-1);
+  --color-dish-2: var(--dish-2);
+  --color-dish-3: var(--dish-3);
+  --color-dish-4: var(--dish-4);
+  --color-dish-5: var(--dish-5);
+  --color-dish-6: var(--dish-6);
+
+  --color-cooking: var(--cooking);
+  --color-cooking-ink: var(--cooking-ink);
+  --color-cooking-tint: var(--cooking-tint);
+
   --color-ready: var(--ready);
+  --color-ready-ink: var(--ready-ink);
+  --color-ready-tint: var(--ready-tint);
+  --color-ready-tint-strong: var(--ready-tint-strong);
+
+  --color-ok: var(--ok);
 
   --color-ring: var(--ring);
   --color-input: var(--input);
@@ -41,6 +64,55 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  --animate-ticket-in: ticket-in 0.22s ease-out;
+  --animate-signal-sweep: signal-sweep 1.1s ease-out;
+  --animate-new-pulse: new-pulse 1.8s ease-in-out infinite;
+  --animate-tab-pulse: tab-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes ticket-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes new-pulse {
+  0%,
+  100% {
+    background-color: var(--new-tint);
+  }
+  50% {
+    background-color: var(--new-pulse-peak);
+  }
+}
+
+/* The Service tab itself, so an unaccepted order is visible from any tab. */
+@keyframes tab-pulse {
+  0%,
+  100% {
+    background-color: var(--new-tint);
+  }
+  50% {
+    background-color: var(--new-pulse-peak);
+  }
+}
+
+@keyframes signal-sweep {
+  0% {
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 /*
@@ -54,15 +126,51 @@
   app/(storefront)/[truckSlug]/layout.tsx, and drives --primary.
 
   Platform-only (home page, dashboard):
-    signal    #F2B632  street-sign yellow: "needs you now" (new orders)
-    ready     #1F7A4D  order ready for pickup
+    signal    #F2B632  street-sign amber: "needs attention" chrome (badges, pills)
+    ok        #1F7A4D  saved / available / connected
+  The vendor's order queue owns a fixed three-colour triad and deliberately does
+  NOT use --brand: a truck whose brand colour is green (the demo truck is
+  #22603F) would collide with the NEW green and a vendor must never confuse
+  "new" with "ready". --brand still drives the storefront and --primary.
+    new       #17774A  green, tint #E6F4EA  a new order, needs accepting
+    cooking   #9A6510  amber, tint #FBE9C8  in the pan
+    ready     #2A74C4  blue,  tint #E4EDFA  ready at the window
 */
 :root {
   --brand: #22603f;
   --brand-foreground: #ffffff;
   --signal: #f2b632;
   --signal-foreground: #1d2733;
-  --ready: #1f7a4d;
+
+  /* "saved / available / connected"; carries --ready's old value. */
+  --ok: #1f7a4d;
+
+  /* Queue zone: NEW */
+  --new: #17774a;
+  --new-foreground: #ffffff;
+  --new-tint: #e6f4ea;
+  --new-tint-strong: #d3ebdc;
+  --new-pulse-peak: #8fd3ae;
+
+  /* Saturated enough to read as a key, light enough that ink clears 8:1 on
+     every one. They carry no meaning: the POS has no status to encode. */
+  --dish-1: #f4a9ae;
+  --dish-2: #f6cc6e;
+  --dish-3: #9ed7ae;
+  --dish-4: #9cc8ea;
+  --dish-5: #c3b2e7;
+  --dish-6: #f5bd95;
+
+  /* Queue zone: COOKING */
+  --cooking: #9a6510;
+  --cooking-ink: #4a3000;
+  --cooking-tint: #fbe9c8;
+
+  /* Queue zone: READY (blue, was green) */
+  --ready: #2a74c4;
+  --ready-ink: #1b4c86;
+  --ready-tint: #e4edfa;
+  --ready-tint-strong: #cfe2f6;
 
   --background: #eceeef;
   --surface: #ffffff;

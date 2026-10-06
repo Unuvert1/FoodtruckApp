@@ -14,17 +14,18 @@ import {
   createMenuItem,
   createSection,
   createTruckForUser,
+  getOrderStatus,
   isSlugTaken,
   joinDemoTruck,
   requireTruckAccess,
   setItemArchived,
   setItemAvailability,
   updateMenuItem,
-  updateNotificationEmail,
   userHasTruck,
 } from "@/lib/tenant";
 import { NEXT_STATUS } from "@/lib/orders/status";
 import { parseDollarsToCents } from "@/lib/money";
+import { slugSchema } from "@/lib/slug";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -46,9 +47,13 @@ export async function advanceOrder(input: z.input<typeof advanceSchema>): Promis
   if (!parsed.success) return fail("That order can't be updated.");
   const { orderId, from } = parsed.data;
 
-  const moved = await advanceOrderStatus(truck.id, orderId, from, NEXT_STATUS[from]);
+  const to = NEXT_STATUS[from];
+  const moved = await advanceOrderStatus(truck.id, orderId, from, to);
   refresh(truck.slug);
-  return moved ? { ok: true } : fail("This order was already updated. The queue has been refreshed.");
+  if (moved) return { ok: true };
+  // The 30-minute sweep (or another tab) may have already put it there.
+  if ((await getOrderStatus(truck.id, orderId)) === to) return { ok: true };
+  return fail("This order was already updated. The queue has been refreshed.");
 }
 
 export async function cancelOrderAction(orderId: string): Promise<ActionResult> {
@@ -79,6 +84,12 @@ const itemSchema = z.object({
   name: z.string().trim().min(1, "Give the item a name.").max(80, "Keep the name under 80 characters."),
   description: z.string().trim().max(300, "Keep the description under 300 characters."),
   price: z.string().max(20),
+  // Only a URL this app issued. /api/uploads returns /api/photos/<id>; anything
+  // else means the value didn't come from our upload route.
+  imageUrl: z
+    .string()
+    .regex(/^\/api\/photos\/[a-z0-9]{1,40}$/)
+    .nullable(),
   isAvailable: z.boolean(),
 });
 
@@ -100,8 +111,8 @@ export async function saveMenuItem(input: z.input<typeof itemSchema>): Promise<S
     return { ok: false, error: "Enter a price like 12.50.", field: "price" };
   }
 
-  const { itemId, sectionId, name, description, isAvailable } = parsed.data;
-  const data = { sectionId, name, description, isAvailable, priceCents };
+  const { itemId, sectionId, name, description, imageUrl, isAvailable } = parsed.data;
+  const data = { sectionId, name, description, imageUrl, isAvailable, priceCents };
   const saved = itemId ? await updateMenuItem(truck.id, itemId, data) : await createMenuItem(truck.id, data);
   refresh(truck.slug);
   return saved ? { ok: true } : fail("That section or item no longer exists.");
@@ -127,31 +138,11 @@ export async function addSection(name: string): Promise<ActionResult> {
   return created ? { ok: true } : fail("Your truck doesn't have a menu yet.");
 }
 
-// ─── Settings ──────────────────────────────────────────────────────────────
-
-export async function saveNotificationEmail(email: string): Promise<ActionResult> {
-  const { truck } = await requireTruckAccess();
-  const trimmed = email.trim();
-  if (trimmed && !z.email().safeParse(trimmed).success) return fail("Enter a valid email address.");
-
-  await updateNotificationEmail(truck.id, trimmed || null);
-  revalidatePath("/dashboard", "layout");
-  return { ok: true };
-}
-
 // ─── Onboarding ────────────────────────────────────────────────────────────
-
-// Top-level paths a truck slug can't take, since /<slug> is the storefront.
-const RESERVED_SLUGS = new Set(["dashboard", "sign-in", "sign-up", "api", "order", "admin", "settings", "help", "about"]);
 
 const truckSchema = z.object({
   name: z.string().trim().min(1, "Enter your truck's name.").max(60),
-  slug: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .regex(/^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/, "Use 3–40 lowercase letters, numbers, and dashes.")
-    .refine((s) => !RESERVED_SLUGS.has(s), "That address is reserved. Try another."),
+  slug: slugSchema,
   timezone: z.string().refine((tz) => Intl.supportedValuesOf("timeZone").includes(tz), "Pick a timezone."),
 });
 

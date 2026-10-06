@@ -14,12 +14,15 @@ Next.js 15 (App Router) · TypeScript · Tailwind v4 + shadcn/ui · Postgres (Su
 app/
   (platform)/                 home page, sign-in / sign-up
   (storefront)/[truckSlug]/   customer storefront, checkout, order status
-  (dashboard)/dashboard/      vendor: service screen (orders + stock), menu, settings
+  (dashboard)/dashboard/      vendor: service queue, order detail, POS, menu, schedule, settings
+  api/                        uploads, dish photos, address lookup, new-order count
 lib/
   tenant.ts                   tenant resolution, access guard, all tenant queries
   pricing.ts                  server-side price/total calculation
   orders/createOrder.ts       the single order-creation path
   orders/markOrderPaid.ts     PAID + vendor email (Stripe webhook will call it)
+  schedule/                   pickup-slot generation, ordering windows
+  geo/                        address autocomplete (keyless by default)
   db.ts                       Prisma client
   dev-auth.ts                 current user (Clerk, or a dev bypass)
 prisma/                       schema, migrations, seed (demo truck)
@@ -35,13 +38,14 @@ prisma/                       schema, migrations, seed (demo truck)
 ```
 Truck ─┬─ Membership (clerkUserId, role)
        ├─ Location
+       ├─ DishPhoto
        ├─ Menu → MenuSection → MenuItem → ModifierGroup → ModifierOption
        └─ Service (location, menu, times, slot size/capacity)
             ├─ PickupSlot (capacity, bookedCount)
             └─ Order → OrderLineItem (price snapshots)
 ```
 
-Order status: `PENDING_PAYMENT → PAID → ACCEPTED → PREPARING → READY → PICKED_UP` (+ `CANCELLED`, `REFUNDED`).
+Order status: `PENDING_PAYMENT → PAID → PREPARING → READY → PICKED_UP` (+ `CANCELLED`, `REFUNDED`; `ACCEPTED` is legacy, never written). `READY` self-advances to `PICKED_UP` after 30 minutes.
 
 ## Hard rules
 

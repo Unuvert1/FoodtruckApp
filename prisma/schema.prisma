@@ -43,29 +43,39 @@ enum OrderSource {
 }
 
 model Truck {
-  id                   String   @id @default(cuid())
-  slug                 String   @unique
+  id                   String  @id @default(cuid())
+  slug                 String  @unique
   name                 String
-  tagline              String   @default("")
+  tagline              String  @default("")
   timezone             String // IANA zone, e.g. "America/Chicago"
   logoUrl              String?
-  brandColor           String   @default("#22603F")
-  brandColorForeground String   @default("#FFFFFF")
+  brandColor           String  @default("#22603F")
+  brandColorForeground String  @default("#FFFFFF")
   heroImageUrl         String?
-  stripeAccountId      String?  @unique
-  stripeOnboarded      Boolean  @default(false)
-  taxRateBps           Int      @default(0)
-  platformFeeBps       Int      @default(250)
-  customDomain         String?  @unique
+  stripeAccountId      String? @unique
+  stripeOnboarded      Boolean @default(false)
+  taxRateBps           Int     @default(0)
+  platformFeeBps       Int     @default(250)
+  customDomain         String? @unique
   notificationEmail    String? // where new-order emails go
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+
+  // Defaults a new Service starts from. Changing these never touches a
+  // Service that already exists.
+  defaultSlotMinutes          Int @default(15)
+  defaultOrdersPerSlot        Int @default(4)
+  orderingOpensHoursBefore    Int @default(24)
+  orderingClosesMinutesBefore Int @default(15)
+  slotLeadMinutes             Int @default(10) // how soon a customer can book a slot
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   memberships Membership[]
   locations   Location[]
   services    Service[]
   menus       Menu[]
   menuItems   MenuItem[]
+  dishPhotos  DishPhoto[]
   orders      Order[]
 }
 
@@ -84,19 +94,27 @@ model Membership {
 }
 
 model Location {
-  id          String  @id @default(cuid())
-  truckId     String
-  name        String
-  addressLine String
-  city        String
-  lat         Float
-  lng         Float
-  notes       String?
+  id              String    @id @default(cuid())
+  truckId         String
+  name            String
+  addressLine     String
+  city            String
+  region          String    @default("") // state/province
+  postcode        String    @default("")
+  lat             Float? // null when neither a geocoder nor a pasted map link gave coordinates
+  lng             Float?
+  notes           String? // parking note, shown to customers
+  // Where the coordinates came from: "geoapify" | "photon" | "manual".
+  provider        String    @default("manual")
+  providerPlaceId String? // the provider's opaque id; indexed for "you already have this spot", never unique
+  lastUsedAt      DateTime? // bumped when a Service is scheduled here; orders "your spots"
+  archivedAt      DateTime? // soft delete: a Service may reference this spot
 
   truck    Truck     @relation(fields: [truckId], references: [id], onDelete: Cascade)
   services Service[]
 
   @@index([truckId])
+  @@index([truckId, provider, providerPlaceId])
 }
 
 // One truck, at one location, from one time to another.
@@ -113,6 +131,9 @@ model Service {
   ordersPerSlot    Int
   status           ServiceStatus @default(DRAFT)
   orderCount       Int           @default(0) // incremented atomically to hand out order numbers
+  publicNote       String        @default("") // one-off note for this stop only ("cash only today")
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
   truck       Truck        @relation(fields: [truckId], references: [id], onDelete: Cascade)
   location    Location     @relation(fields: [locationId], references: [id])
@@ -185,6 +206,24 @@ model MenuItem {
   @@index([sectionId])
 }
 
+/// A dish photo, stored in the database and served by /api/photos/[id].
+/// Images are downscaled in the browser before upload, so rows stay small.
+/// Swapping to object storage later means writing a different URL into
+/// MenuItem.imageUrl — nothing else here changes.
+model DishPhoto {
+  id          String   @id @default(cuid())
+  truckId     String
+  contentType String
+  width       Int
+  height      Int
+  bytes       Bytes
+  createdAt   DateTime @default(now())
+
+  truck Truck @relation(fields: [truckId], references: [id], onDelete: Cascade)
+
+  @@index([truckId])
+}
+
 model ModifierGroup {
   id         String  @id @default(cuid())
   menuItemId String
@@ -233,6 +272,9 @@ model Order {
   placedAt                DateTime    @default(now())
   readyAt                 DateTime?
   pickedUpAt              DateTime?
+  acceptedAt              DateTime? // set when the vendor taps Accept (PAID → PREPARING)
+  autoCompletedAt         DateTime? // set by the 30-minute READY sweep, not by a human tap
+  refundedCents           Int         @default(0) // sum of voided line items; no money has moved yet
   source                  OrderSource @default(WEB)
   updatedAt               DateTime    @updatedAt
 
@@ -244,6 +286,7 @@ model Order {
   @@unique([serviceId, orderNumber])
   @@index([truckId, status])
   @@index([status, placedAt]) // the unpaid-order sweep
+  @@index([status, readyAt]) // the 30-minute auto-complete sweep
 }
 
 // A snapshot of what was bought, at the price paid. Never re-join to the live menu.
@@ -256,6 +299,9 @@ model OrderLineItem {
   quantity          Int
   modifiersSnapshot Json // [{ group, name, priceDeltaCents }]
   lineTotalCents    Int
+  voidedAt          DateTime? // the vendor removed this line after the fact
+  voidedReason      String? // "SOLD_OUT" | "CUSTOMER_REQUEST" | "MISTAKE"
+  voidedCents       Int       @default(0) // refund owed for this line, excl. tax
 
   order    Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   menuItem MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)

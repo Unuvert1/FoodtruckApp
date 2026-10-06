@@ -7,14 +7,23 @@ import { cn } from "@/lib/utils";
 import { OrderActions } from "@/components/storefront/order-actions";
 import { RefreshStatus } from "@/components/storefront/refresh-status";
 
-// Customer-facing progress, in the order it happens. PAID and ACCEPTED both
-// read as "received": the customer doesn't need the distinction.
+// Customer-facing progress, in the order it happens. Each kitchen status gets
+// its own step; ACCEPTED is legacy and shares the "Being prepared" step.
 const STEPS: { label: string; statuses: Status[] }[] = [
-  { label: "Order received", statuses: ["PAID", "ACCEPTED"] },
-  { label: "Being prepared", statuses: ["PREPARING"] },
+  { label: "Order sent", statuses: ["PAID"] },
+  { label: "Being prepared", statuses: ["ACCEPTED", "PREPARING"] },
   { label: "Ready at the window", statuses: ["READY"] },
   { label: "Picked up", statuses: ["PICKED_UP"] },
 ];
+
+// The one line under the truck name: this is what changes when the truck taps Accept.
+const HEADLINE: Partial<Record<Status, (name: string) => string>> = {
+  PAID: (n) => `Thanks, ${n}. Waiting for the truck to confirm.`,
+  ACCEPTED: (n) => `${n}, the truck has your order — it's being made.`,
+  PREPARING: (n) => `${n}, the truck has your order — it's being made.`,
+  READY: (n) => `${n}, your order is ready.`,
+  PICKED_UP: (n) => `Thanks, ${n}. Enjoy.`,
+};
 
 type Props = {
   truck: Truck;
@@ -28,7 +37,7 @@ export function OrderStatus({ truck, order, location, refresh }: Props) {
   const tz = truck.timezone;
   const cancelled = order.status === "CANCELLED" || order.status === "REFUNDED";
   const current = STEPS.findIndex((s) => s.statuses.includes(order.status));
-  const ready = order.status === "READY";
+  const headline = HEADLINE[order.status]?.(order.customerName) ?? `Thanks, ${order.customerName}.`;
 
   return (
     <main className="mx-auto max-w-2xl pb-16 md:max-w-3xl lg:max-w-4xl">
@@ -38,9 +47,8 @@ export function OrderStatus({ truck, order, location, refresh }: Props) {
       </p>
       <section className="bg-brand px-4 pt-8 pb-8 text-brand-foreground sm:rounded-b-3xl">
         <p className="font-display text-xl font-bold tracking-wide">{truck.name}</p>
-        <p className="mt-8 text-base font-medium">
-          {ready ? `${order.customerName}, your order is ready.` : `Thanks, ${order.customerName}. Your order number is`}
-        </p>
+        <p className="mt-8 text-base font-medium">{headline}</p>
+        <p className="mt-1 text-[0.9375rem] opacity-90">Your order number is</p>
         <h1 className="font-display text-[clamp(6rem,34vw,10rem)] leading-[0.85] font-extrabold tabular-nums">
           {order.orderNumber}
         </h1>
@@ -113,6 +121,11 @@ export function OrderStatus({ truck, order, location, refresh }: Props) {
                   );
                 })}
               </ol>
+            )}
+            {!cancelled && order.autoCompletedAt && (
+              <p className="mt-3 text-sm text-muted-foreground">
+                We closed this order automatically 30 minutes after it was ready. If you didn&apos;t collect it, ask at the window.
+              </p>
             )}
           </section>
 

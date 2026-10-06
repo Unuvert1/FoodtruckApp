@@ -20,7 +20,7 @@ export default async function ServicePage({ searchParams }: Props) {
   if (!selected) {
     return (
       <main className="mx-auto max-w-7xl px-4 py-12">
-        <h1 className="font-display text-4xl font-bold">No stops scheduled</h1>
+        <h1 className="text-[1.75rem] font-semibold tracking-[-0.02em]">No stops scheduled</h1>
         <p className="mt-3 max-w-prose text-muted-foreground">
           Orders show up here once you have a stop on the schedule. Scheduling stops from the dashboard is coming
           next. Meanwhile you can set up your menu.

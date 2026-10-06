@@ -21,7 +21,7 @@ export function formatTimeRange(start: DateInput, end: DateInput, timeZone: stri
 }
 
 /** Calendar date (Y-M-D) of an instant, as seen in the given zone. */
-function zonedDateKey(d: DateInput, timeZone: string): string {
+export function zonedDateKey(d: DateInput, timeZone: string): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone,
     year: "numeric",
@@ -94,4 +94,37 @@ export function zonedTime(
   const [y, m, d] = zonedDateKey(now, timeZone).split("-").map(Number);
   const guess = Date.UTC(y, m - 1, d + daysFromToday, hour, minute);
   return new Date(guess - zoneOffsetMs(new Date(guess), timeZone));
+}
+
+// ─── Wall-clock form values ────────────────────────────────────────────────
+// The schedule form speaks "2026-10-09" and "11:30" (what <input type="date">
+// and <input type="time"> produce). These convert between that and a UTC
+// instant, always through the truck's zone.
+
+/** The UTC instant for a wall-clock date ("YYYY-MM-DD") and time ("HH:mm") in a zone. */
+export function zonedTimeFromParts(timeZone: string, date: string, time: string): Date {
+  const [y, m, d] = date.split("-").map(Number);
+  const [h, min] = time.split(":").map(Number);
+  const guess = Date.UTC(y, m - 1, d, h, min);
+  // Two passes: the offset at the guess can differ from the offset at the answer around a DST change.
+  const first = guess - zoneOffsetMs(new Date(guess), timeZone);
+  return new Date(guess - zoneOffsetMs(new Date(first), timeZone));
+}
+
+/** "YYYY-MM-DD" of an instant, as seen in the zone: the value for <input type="date">. */
+export function toZonedDateInput(d: DateInput, timeZone: string): string {
+  return zonedDateKey(d, timeZone);
+}
+
+/** "HH:mm" of an instant, as seen in the zone: the value for <input type="time">. */
+export function toZonedTimeInput(d: DateInput, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone, hourCycle: "h23", hour: "2-digit", minute: "2-digit" }).formatToParts(toDate(d));
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "00";
+  return `${get("hour")}:${get("minute")}`;
+}
+
+/** Calendar arithmetic on a "YYYY-MM-DD" key, with no timezone involved. */
+export function addDaysToDateKey(key: string, days: number): string {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
 }
