@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ChevronDown, Plus } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import type { MenuItem } from "@/lib/types";
 import { formatCents } from "@/lib/money";
 import { cn } from "@/lib/utils";
@@ -13,57 +12,54 @@ const TONES = ["bg-dish-1", "bg-dish-2", "bg-dish-3", "bg-dish-4", "bg-dish-5", 
 
 type Props = { item: MenuItem; index: number; onSelect: (item: MenuItem) => void };
 
+/**
+ * A key, not a card. The dark bottom edge is the whole trick: it reads as a
+ * physical keycap, and pressing it shortens that edge and drops the face by the
+ * same 2px, so the key travels without the grid reflowing (border-box plus a
+ * fixed aspect ratio keeps the outer size constant).
+ */
 export function DishTile({ item, index, onSelect }: Props) {
   const soldOut = !item.isAvailable;
-  const [bumped, setBumped] = useState(false);
-
-  useEffect(() => {
-    if (!bumped) return;
-    const timer = setTimeout(() => setBumped(false), 320);
-    return () => clearTimeout(timer);
-  }, [bumped]);
 
   return (
     <button
       type="button"
       disabled={soldOut}
       aria-disabled={soldOut}
-      onClick={() => {
-        setBumped(true);
-        onSelect(item);
-      }}
+      onClick={() => onSelect(item)}
       className={cn(
-        "relative flex min-h-[4.25rem] flex-col justify-between gap-1 overflow-hidden rounded-xl px-2.5 py-2 text-left",
-        "outline-none transition-transform duration-100 ease-out focus-visible:ring-4 focus-visible:ring-foreground/30",
-        // The press itself has to feel like something: the tile gives, then
-        // settles. Without this a tap reads as nothing happening.
-        "motion-safe:active:scale-[0.96] motion-reduce:transition-none",
-        soldOut ? "bg-muted" : TONES[index % TONES.length],
-        bumped && "motion-safe:ring-2 motion-safe:ring-foreground/40"
+        "relative flex aspect-5/4 flex-col justify-between rounded-lg px-2.5 py-2 text-left",
+        "border-b-4 border-black/20 outline-none focus-visible:ring-4 focus-visible:ring-foreground/40",
+        "transition-[transform,border-width] duration-75 ease-out motion-reduce:transition-none",
+        soldOut
+          ? "border-black/10 bg-muted"
+          : [TONES[index % TONES.length], "active:translate-y-0.5 active:border-b-2 hover:brightness-[1.03]"]
       )}
     >
       <span
         className={cn(
-          "line-clamp-2 text-[0.9375rem] leading-[1.2] font-semibold",
-          soldOut && "text-muted-foreground line-through"
+          "line-clamp-3 text-[0.9375rem] leading-[1.15] font-bold",
+          soldOut ? "text-muted-foreground line-through" : "text-foreground"
         )}
       >
         {item.name}
       </span>
-      <span className="flex items-center justify-between text-[0.8125rem] font-medium text-foreground/70 tabular-nums">
-        {soldOut ? <span>Sold out</span> : <span>{formatCents(item.priceCents)}</span>}
-        {!soldOut && item.modifierGroups.length > 0 && <ChevronDown aria-label="Has options" className="size-3.5" />}
-      </span>
 
-      {/* Confirms the tap landed, on the tile the thumb is already on. */}
-      {bumped && !soldOut && (
+      <span className="flex items-end justify-between gap-1">
+        {!soldOut && item.modifierGroups.length > 0 ? (
+          <ChevronDown aria-label="Has options" className="size-3.5 shrink-0 text-foreground/55" />
+        ) : (
+          <span />
+        )}
         <span
-          aria-hidden
-          className="absolute top-1 right-1 flex size-5 items-center justify-center rounded-full bg-foreground text-background motion-reduce:hidden"
+          className={cn(
+            "text-[0.875rem] leading-none font-bold tabular-nums",
+            soldOut ? "text-muted-foreground" : "text-foreground/80"
+          )}
         >
-          <Plus className="size-3" strokeWidth={3} />
+          {soldOut ? "Sold out" : formatCents(item.priceCents)}
         </span>
-      )}
+      </span>
     </button>
   );
 }

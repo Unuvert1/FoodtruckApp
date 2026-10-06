@@ -152,14 +152,14 @@
   --new-tint-strong: #d3ebdc;
   --new-pulse-peak: #8fd3ae;
 
-  /* Pastel enough that ink sits above 12:1 on every one of them. They carry
-     no meaning: the POS has no status to encode, so this is wayfinding only. */
-  --dish-1: #fbe4e6;
-  --dish-2: #fdf0d5;
-  --dish-3: #e3f1df;
-  --dish-4: #ddebf7;
-  --dish-5: #eae3f7;
-  --dish-6: #fce7d9;
+  /* Saturated enough to read as a key, light enough that ink clears 8:1 on
+     every one. They carry no meaning: the POS has no status to encode. */
+  --dish-1: #f4a9ae;
+  --dish-2: #f6cc6e;
+  --dish-3: #9ed7ae;
+  --dish-4: #9cc8ea;
+  --dish-5: #c3b2e7;
+  --dish-6: #f5bd95;
 
   /* Queue zone: COOKING */
   --cooking: #9a6510;
