@@ -25,11 +25,11 @@ export function ServiceHero({ truck, service, location, firstSlot, now }: Props)
       aria-labelledby="hero-location"
       className="awning-edge bg-brand pb-12 text-brand-foreground"
     >
-      <header className="mx-auto flex max-w-2xl items-center justify-between px-4 pt-4">
+      <header className="mx-auto flex max-w-2xl md:max-w-3xl lg:max-w-4xl items-center justify-between px-4 pt-4">
         <p className="font-display text-xl font-bold tracking-wide">{truck.name}</p>
       </header>
 
-      <div className="mx-auto max-w-2xl px-4 pt-10">
+      <div className="mx-auto max-w-2xl md:max-w-3xl lg:max-w-4xl px-4 pt-10">
         <p className="flex items-center gap-2.5 text-base font-medium">
           <span>{formatDayLabel(service.startsAt, tz, now)}</span>
           {live && (
@@ -65,7 +65,7 @@ export function ServiceHero({ truck, service, location, firstSlot, now }: Props)
                 rel="noreferrer"
                 className="font-semibold underline underline-offset-4 focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-foreground"
               >
-                Directions
+                Directions<span className="sr-only"> (opens in a new tab)</span>
               </a>
             </p>
             {location.notes && <p className="mt-1 opacity-80">{location.notes}</p>}
