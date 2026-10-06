@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import type { Menu, MenuItem } from "@/lib/types";
 import { formatCents } from "@/lib/money";
 import { cn } from "@/lib/utils";
+import { ItemPhoto } from "@/components/storefront/item-photo";
 import { ItemSheet } from "@/components/storefront/item-sheet";
 
 type Props = {
@@ -119,6 +120,11 @@ function MenuRow({ item, onSelect }: { item: MenuItem; onSelect: () => void }) {
           )}
         </p>
       </div>
+      <ItemPhoto
+        src={item.imageUrl}
+        alt=""
+        className={cn("size-16 shrink-0 rounded-xl", soldOut && "opacity-50 grayscale")}
+      />
       {!soldOut && (
         <span
           aria-hidden

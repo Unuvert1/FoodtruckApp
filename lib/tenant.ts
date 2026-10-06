@@ -101,6 +101,7 @@ function toMenuItem(row: ItemRow): MenuItem {
     description: row.description,
     priceCents: row.priceCents,
     isAvailable: row.isAvailable,
+    imageUrl: row.imageUrl,
     modifierGroups: row.modifierGroups.map((g) => ({
       id: g.id,
       name: g.name,

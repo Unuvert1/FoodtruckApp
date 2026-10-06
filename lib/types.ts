@@ -71,6 +71,7 @@ export type MenuItem = {
   description: string;
   priceCents: number;
   isAvailable: boolean;
+  imageUrl?: string | null;
   modifierGroups: ModifierGroup[];
 };
 

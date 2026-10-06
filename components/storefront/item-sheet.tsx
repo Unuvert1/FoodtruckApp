@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { useCart } from "@/components/storefront/cart-provider";
+import { ItemPhoto } from "@/components/storefront/item-photo";
 
 type Props = {
   item: MenuItem | null;
@@ -79,6 +80,7 @@ function ItemSheetBody({
     <>
       <div className="overflow-y-auto px-5 pt-6 pb-4">
         <div aria-hidden className="mx-auto -mt-3 mb-4 h-1 w-10 rounded-full bg-border" />
+        <ItemPhoto src={item.imageUrl} alt={item.name} className="mb-4 aspect-[16/9] w-full rounded-2xl" />
         <SheetTitle className="pr-8 font-display text-[1.875rem] leading-[1.05] font-bold">{item.name}</SheetTitle>
         {item.description && (
           <SheetDescription className="mt-2 text-[0.9375rem] leading-relaxed">{item.description}</SheetDescription>
