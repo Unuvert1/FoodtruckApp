@@ -92,7 +92,7 @@ export function CheckoutForm({ truck, service, location, menu, slots }: Props) {
   }
 
   return (
-    <main className="mx-auto max-w-2xl pb-32">
+    <main className="mx-auto max-w-2xl pb-32 lg:max-w-4xl">
       <header className="px-4 pt-4">
         <Link
           href={menuHref}
@@ -117,128 +117,134 @@ export function CheckoutForm({ truck, service, location, menu, slots }: Props) {
         </div>
       ) : (
         <form onSubmit={handlePlaceOrder} noValidate>
-          <Section title="Items">
-            <ul className="divide-y divide-border rounded-2xl bg-surface px-4">
-              {resolved.map((line) => (
-                <li key={line.key} className="flex items-start gap-3 py-4">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold">{line.item.name}</p>
-                    {line.options.length > 0 && (
-                      <p className="mt-0.5 text-sm text-muted-foreground">{line.options.map((o) => o.name).join(", ")}</p>
-                    )}
-                    <p className="mt-1.5 text-sm font-medium tabular-nums">{formatCents(line.lineTotalCents)}</p>
-                  </div>
-                  <div className="flex h-10 items-center rounded-lg ring-1 ring-border">
-                    <button
-                      type="button"
-                      onClick={() => setQuantity(line.key, line.quantity - 1)}
-                      aria-label={line.quantity === 1 ? `Remove ${line.item.name}` : `One less ${line.item.name}`}
-                      className="flex size-10 items-center justify-center rounded-l-lg outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                    >
-                      {line.quantity === 1 ? <Trash2 className="size-4" /> : <Minus className="size-4" />}
-                    </button>
-                    <span className="w-5 text-center text-sm font-semibold tabular-nums">{line.quantity}</span>
-                    <button
-                      type="button"
-                      onClick={() => setQuantity(line.key, line.quantity + 1)}
-                      aria-label={`One more ${line.item.name}`}
-                      className="flex size-10 items-center justify-center rounded-r-lg outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                    >
-                      <Plus className="size-4" />
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </Section>
+          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-x-8">
+            <div>
+              <Section title="Items">
+                <ul className="divide-y divide-border rounded-2xl bg-surface px-4">
+                  {resolved.map((line) => (
+                    <li key={line.key} className="flex items-start gap-3 py-4">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold">{line.item.name}</p>
+                        {line.options.length > 0 && (
+                          <p className="mt-0.5 text-sm text-muted-foreground">{line.options.map((o) => o.name).join(", ")}</p>
+                        )}
+                        <p className="mt-1.5 text-sm font-medium tabular-nums">{formatCents(line.lineTotalCents)}</p>
+                      </div>
+                      <div className="flex h-10 items-center rounded-lg ring-1 ring-border">
+                        <button
+                          type="button"
+                          onClick={() => setQuantity(line.key, line.quantity - 1)}
+                          aria-label={line.quantity === 1 ? `Remove ${line.item.name}` : `One less ${line.item.name}`}
+                          className="flex size-10 items-center justify-center rounded-l-lg outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                        >
+                          {line.quantity === 1 ? <Trash2 className="size-4" /> : <Minus className="size-4" />}
+                        </button>
+                        <span className="w-5 text-center text-sm font-semibold tabular-nums">{line.quantity}</span>
+                        <button
+                          type="button"
+                          onClick={() => setQuantity(line.key, line.quantity + 1)}
+                          aria-label={`One more ${line.item.name}`}
+                          className="flex size-10 items-center justify-center rounded-r-lg outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                        >
+                          <Plus className="size-4" />
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </Section>
 
-          <Section title="Pickup time" id="field-slot" error={errors.slot}>
-            {slots.length === 0 ? (
-              <p className="rounded-2xl bg-surface px-4 py-5 text-sm">
-                Every pickup time for this stop is full. You can still order at the window.
-              </p>
-            ) : (
-              <RadioGroup
-                aria-label="Pickup time"
-                value={slotId}
-                onValueChange={(v) => {
-                  setSlotId(v as string);
-                  setErrors((e) => ({ ...e, slot: undefined }));
-                }}
-                className="grid grid-cols-3 gap-2"
-              >
-                {slots.map((slot) => {
-                  const left = slot.capacity - slot.bookedCount;
-                  return (
-                    <Tile key={slot.id} value={slot.id}>
-                      <span className="font-semibold tabular-nums">{formatTime(slot.startsAt, tz)}</span>
-                      {left <= 2 && <span className="text-xs opacity-75">{left} left</span>}
+              <Section title="Pickup time" id="field-slot" error={errors.slot}>
+                {slots.length === 0 ? (
+                  <p className="rounded-2xl bg-surface px-4 py-5 text-sm">
+                    Every pickup time for this stop is full. You can still order at the window.
+                  </p>
+                ) : (
+                  <RadioGroup
+                    aria-label="Pickup time"
+                    value={slotId}
+                    onValueChange={(v) => {
+                      setSlotId(v as string);
+                      setErrors((e) => ({ ...e, slot: undefined }));
+                    }}
+                    className="grid grid-cols-3 gap-2"
+                  >
+                    {slots.map((slot) => {
+                      const left = slot.capacity - slot.bookedCount;
+                      return (
+                        <Tile key={slot.id} value={slot.id}>
+                          <span className="font-semibold tabular-nums">{formatTime(slot.startsAt, tz)}</span>
+                          {left <= 2 && <span className="text-xs opacity-75">{left} left</span>}
+                        </Tile>
+                      );
+                    })}
+                  </RadioGroup>
+                )}
+              </Section>
+
+              <Section title="Tip">
+                <p className="-mt-1 mb-3 text-sm text-muted-foreground">All tips go to the crew.</p>
+                <RadioGroup
+                  aria-label="Tip"
+                  value={tipBps}
+                  onValueChange={(v) => setTipBps(v as number)}
+                  className="grid grid-cols-4 gap-2"
+                >
+                  {TIP_CHOICES_BPS.map((bps) => (
+                    <Tile key={bps} value={bps}>
+                      <span className="font-semibold">{bps === 0 ? "None" : `${bps / 100}%`}</span>
+                      {bps > 0 && <span className="text-xs tabular-nums opacity-75">{formatCents(applyBps(subtotal, bps))}</span>}
                     </Tile>
-                  );
-                })}
-              </RadioGroup>
-            )}
-          </Section>
+                  ))}
+                </RadioGroup>
+              </Section>
 
-          <Section title="Tip">
-            <p className="-mt-1 mb-3 text-sm text-muted-foreground">All tips go to the crew.</p>
-            <RadioGroup
-              aria-label="Tip"
-              value={tipBps}
-              onValueChange={(v) => setTipBps(v as number)}
-              className="grid grid-cols-4 gap-2"
-            >
-              {TIP_CHOICES_BPS.map((bps) => (
-                <Tile key={bps} value={bps}>
-                  <span className="font-semibold">{bps === 0 ? "None" : `${bps / 100}%`}</span>
-                  {bps > 0 && <span className="text-xs tabular-nums opacity-75">{formatCents(applyBps(subtotal, bps))}</span>}
-                </Tile>
-              ))}
-            </RadioGroup>
-          </Section>
+              <Section title="Your details">
+                <div className="space-y-4 rounded-2xl bg-surface p-4">
+                  <Field id="field-name" label="Name for the order" error={errors.name}>
+                    <Input
+                      id="name"
+                      autoComplete="given-name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      aria-invalid={Boolean(errors.name)}
+                      className="h-12 rounded-xl bg-surface px-3.5 text-base"
+                    />
+                  </Field>
+                  <Field id="field-phone" label="Phone" hint="Only used if there's a problem with your order." error={errors.phone}>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      aria-invalid={Boolean(errors.phone)}
+                      className="h-12 rounded-xl bg-surface px-3.5 text-base"
+                    />
+                  </Field>
+                </div>
+              </Section>
 
-          <Section title="Your details">
-            <div className="space-y-4 rounded-2xl bg-surface p-4">
-              <Field id="field-name" label="Name for the order" error={errors.name}>
-                <Input
-                  id="name"
-                  autoComplete="given-name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  aria-invalid={Boolean(errors.name)}
-                  className="h-12 rounded-xl bg-surface px-3.5 text-base"
-                />
-              </Field>
-              <Field id="field-phone" label="Phone" hint="Only used if there's a problem with your order." error={errors.phone}>
-                <Input
-                  id="phone"
-                  type="tel"
-                  inputMode="tel"
-                  autoComplete="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  aria-invalid={Boolean(errors.phone)}
-                  className="h-12 rounded-xl bg-surface px-3.5 text-base"
-                />
-              </Field>
             </div>
-          </Section>
-
-          <Section title="Total">
-            <dl className="space-y-2 rounded-2xl bg-surface p-4 text-[0.9375rem] tabular-nums">
-              <Row label="Subtotal" cents={totals.subtotalCents} />
-              <Row label={`Tax (${truck.taxRateBps / 100}%)`} cents={totals.taxCents} />
-              <Row label="Tip" cents={totals.tipCents} />
-              <div className="flex justify-between border-t border-border pt-2 text-base font-semibold">
-                <dt>Total</dt>
-                <dd>{formatCents(totals.totalCents)}</dd>
-              </div>
-            </dl>
-          </Section>
+            <div className="lg:sticky lg:top-6">
+              <Section title="Total">
+                <dl className="space-y-2 rounded-2xl bg-surface p-4 text-[0.9375rem] tabular-nums">
+                  <Row label="Subtotal" cents={totals.subtotalCents} />
+                  <Row label={`Tax (${truck.taxRateBps / 100}%)`} cents={totals.taxCents} />
+                  <Row label="Tip" cents={totals.tipCents} />
+                  <div className="flex justify-between border-t border-border pt-2 text-base font-semibold">
+                    <dt>Total</dt>
+                    <dd>{formatCents(totals.totalCents)}</dd>
+                  </div>
+                </dl>
+              </Section>
+            </div>
+          </div>
 
           <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur">
             {serverError && (
-              <p role="alert" className="mx-auto mb-3 max-w-2xl text-sm font-medium text-destructive">
+              <p role="alert" className="mx-auto mb-3 max-w-2xl lg:max-w-4xl text-sm font-medium text-destructive">
                 {serverError}
               </p>
             )}
@@ -246,7 +252,7 @@ export function CheckoutForm({ truck, service, location, menu, slots }: Props) {
               type="submit"
               aria-busy={placing}
               disabled={placing || slots.length === 0 || resolved.length === 0}
-              className="mx-auto flex h-14 w-full max-w-2xl justify-between rounded-2xl px-5 text-base font-semibold"
+              className="mx-auto flex h-14 w-full max-w-2xl lg:max-w-4xl justify-between rounded-2xl px-5 text-base font-semibold"
             >
               <span>{placing ? "Placing order…" : "Place order"}</span>
               <span className="tabular-nums">{formatCents(totals.totalCents)}</span>

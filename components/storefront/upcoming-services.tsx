@@ -16,13 +16,13 @@ export function UpcomingServices({ truck, services, locations, selectedId, now }
   const tz = truck.timezone;
 
   return (
-    <section aria-labelledby="stops-heading" className="mx-auto max-w-2xl px-4 pt-6">
+    <section aria-labelledby="stops-heading" className="mx-auto max-w-2xl md:max-w-3xl lg:max-w-4xl px-4 pt-6">
       <h2 id="stops-heading" className="font-display text-[1.75rem] leading-tight font-bold">
         Upcoming stops
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">Pick a stop to order for it.</p>
 
-      <ul className="mt-4 divide-y divide-border overflow-hidden rounded-2xl bg-surface">
+      <ul className="mt-4 divide-y divide-border overflow-hidden rounded-2xl bg-surface md:grid md:grid-cols-2 md:gap-3 md:divide-y-0 md:overflow-visible md:rounded-none md:bg-transparent">
         {services.map((service) => {
           const location = locations[service.locationId];
           const { weekday, day } = formatDayParts(service.startsAt, tz);
@@ -36,7 +36,7 @@ export function UpcomingServices({ truck, services, locations, selectedId, now }
           else availability = "Ordering closed";
 
           return (
-            <li key={service.id}>
+            <li key={service.id} className="md:overflow-hidden md:rounded-2xl md:bg-surface">
               <Link
                 href={`/${truck.slug}?service=${service.id}`}
                 scroll={false}

@@ -17,7 +17,7 @@ export function OrderBar({ menu, checkoutHref }: { menu: Menu; checkoutHref: str
     <div className="fixed inset-x-0 bottom-0 z-30 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] motion-safe:animate-in motion-safe:slide-in-from-bottom-6 motion-safe:fade-in motion-safe:duration-200">
       <Link
         href={checkoutHref}
-        className="mx-auto flex h-14 max-w-2xl items-center gap-3 rounded-2xl bg-brand px-5 text-brand-foreground shadow-[0_8px_24px_-8px_rgb(29_39_51/0.45)] outline-none focus-visible:ring-4 focus-visible:ring-brand/40"
+        className="mx-auto flex h-14 max-w-2xl md:max-w-3xl lg:max-w-4xl items-center gap-3 rounded-2xl bg-brand px-5 text-brand-foreground shadow-[0_8px_24px_-8px_rgb(29_39_51/0.45)] outline-none focus-visible:ring-4 focus-visible:ring-brand/40"
       >
         <span className="flex size-7 items-center justify-center rounded-full bg-brand-foreground text-sm font-bold text-brand tabular-nums">
           {count}

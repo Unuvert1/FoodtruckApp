@@ -41,7 +41,7 @@ export function MenuList({ menu, canOrder, closedReason }: Props) {
   if (menu.sections.length === 0) {
     return (
       <section id="menu" aria-labelledby="menu-heading" className="scroll-mt-4 pt-10">
-        <div className="mx-auto max-w-2xl px-4">
+        <div className="mx-auto max-w-2xl md:max-w-3xl lg:max-w-4xl px-4">
           <h2 id="menu-heading" className="font-display text-[1.75rem] leading-tight font-bold">
             Menu
           </h2>
@@ -58,7 +58,7 @@ export function MenuList({ menu, canOrder, closedReason }: Props) {
 
   return (
     <section id="menu" aria-labelledby="menu-heading" className="scroll-mt-4 pt-10">
-      <div className="mx-auto max-w-2xl px-4">
+      <div className="mx-auto max-w-2xl md:max-w-3xl lg:max-w-4xl px-4">
         <h2 id="menu-heading" className="font-display text-[1.75rem] leading-tight font-bold">
           Menu
         </h2>
@@ -94,7 +94,7 @@ export function MenuList({ menu, canOrder, closedReason }: Props) {
           aria-label="Menu sections"
           className="sticky top-0 z-20 mt-2 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80"
         >
-          <ul className="no-scrollbar mx-auto flex max-w-2xl gap-2 overflow-x-auto px-4 py-2.5">
+          <ul className="no-scrollbar mx-auto flex max-w-2xl md:max-w-3xl lg:max-w-4xl gap-2 overflow-x-auto px-4 py-2.5">
             {sections.map((section) => (
               <li key={section.id}>
                 <a
@@ -109,7 +109,7 @@ export function MenuList({ menu, canOrder, closedReason }: Props) {
         </nav>
       )}
 
-      <div className="mx-auto max-w-2xl px-4">
+      <div className="mx-auto max-w-2xl md:max-w-3xl lg:max-w-4xl px-4">
         {sections.length === 0 && (
           <div className="mt-7 rounded-2xl bg-surface px-5 py-8">
             <p className="font-semibold">Nothing matches.</p>
@@ -131,9 +131,9 @@ export function MenuList({ menu, canOrder, closedReason }: Props) {
         {sections.map((section) => (
           <div key={section.id} id={section.id} className="scroll-mt-16 pt-7">
             <h3 className="font-display text-[1.375rem] leading-tight font-semibold">{section.name}</h3>
-            <ul className="mt-3 divide-y divide-border overflow-hidden rounded-2xl bg-surface">
+            <ul className="mt-3 divide-y divide-border overflow-hidden rounded-2xl bg-surface md:grid md:grid-cols-2 md:gap-3 md:divide-y-0 md:overflow-visible md:rounded-none md:bg-transparent">
               {section.items.map((item) => (
-                <li key={item.id}>
+                <li key={item.id} className="md:overflow-hidden md:rounded-2xl md:bg-surface">
                   <MenuRow item={item} onSelect={() => setOpenItem(item)} />
                 </li>
               ))}
