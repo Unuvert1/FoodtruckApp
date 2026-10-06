@@ -4,6 +4,7 @@ import type { Location, OrderStatus as Status, OrderView, Truck } from "@/lib/ty
 import { formatCents } from "@/lib/money";
 import { formatDayLabel, formatTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
+import { OrderActions } from "@/components/storefront/order-actions";
 
 // Customer-facing progress, in the order it happens. PAID and ACCEPTED both
 // read as "received": the customer doesn't need the distinction.
@@ -48,6 +49,18 @@ export function OrderStatus({ truck, order, location }: { truck: Truck; order: O
             {location.addressLine}, {location.city}
           </p>
         </div>
+        {!cancelled && (
+          <div className="mt-4">
+            <OrderActions
+              orderId={order.id}
+              orderNumber={order.orderNumber}
+              truckName={truck.name}
+              pickupAt={order.pickupAt}
+              locationName={location.name}
+              address={`${location.addressLine}, ${location.city}`}
+            />
+          </div>
+        )}
       </section>
 
       <section className="px-4 pt-8">
