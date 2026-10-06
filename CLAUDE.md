@@ -14,7 +14,8 @@ Next.js 15 (App Router) · TypeScript · Tailwind v4 + shadcn/ui · Postgres (Su
 app/
   (platform)/                 home page, sign-in / sign-up
   (storefront)/[truckSlug]/   customer storefront, checkout, order status
-  (dashboard)/dashboard/      vendor: service screen (orders + stock), menu, schedule, settings
+  (dashboard)/dashboard/      vendor: service queue, order detail, POS, menu, schedule, settings
+  api/                        uploads, dish photos, address lookup, new-order count
 lib/
   tenant.ts                   tenant resolution, access guard, all tenant queries
   pricing.ts                  server-side price/total calculation
