@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { ExternalLink } from "lucide-react";
+import { SettingsButton } from "@/components/dashboard/settings-button";
 import { requireTruckAccess } from "@/lib/tenant";
 import { DEV_AUTH_BYPASS } from "@/lib/dev-auth";
 import { DashboardNav } from "@/components/dashboard/dashboard-nav";
@@ -21,6 +22,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <span className="hidden sm:inline">Ordering page</span>
             <ExternalLink aria-label="Open your ordering page" className="size-4" />
           </Link>
+          <SettingsButton />
           {DEV_AUTH_BYPASS ? (
             <span
               title="Login is off (DEV_AUTH_BYPASS in .env.local)"
