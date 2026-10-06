@@ -35,6 +35,8 @@ export function useCheck(items: MenuItem[], taxRateBps: number) {
   const [lines, setLines] = useState<CheckLine[]>([]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [flash, setFlash] = useState<{ key: string; n: number } | null>(null);
+  // Snapshots before each change, so Undo can step back through the check.
+  const [history, setHistory] = useState<CheckLine[][]>([]);
 
   const itemsById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
 
@@ -44,7 +46,10 @@ export function useCheck(items: MenuItem[], taxRateBps: number) {
     return () => clearTimeout(t);
   }, [flash]);
 
+  const snapshot = useCallback(() => setHistory((h) => [...h.slice(-19), lines]), [lines]);
+
   const add = useCallback((menuItemId: string, optionIds: string[]) => {
+    snapshot();
     const key = lineKey(menuItemId, optionIds);
     setLines((prev) =>
       prev.some((l) => l.key === key)
@@ -52,16 +57,18 @@ export function useCheck(items: MenuItem[], taxRateBps: number) {
         : [...prev, { key, menuItemId, optionIds: [...optionIds], quantity: 1 }]
     );
     setFlash((f) => ({ key, n: (f?.n ?? 0) + 1 }));
-  }, []);
+  }, [snapshot]);
 
   const setQuantity = useCallback((key: string, quantity: number) => {
+    snapshot();
     setLines((prev) => prev.map((l) => (l.key === key ? { ...l, quantity: clamp(quantity) } : l)));
-  }, []);
+  }, [snapshot]);
 
   const remove = useCallback((key: string) => {
+    snapshot();
     setLines((prev) => prev.filter((l) => l.key !== key));
     setSelectedKey((k) => (k === key ? null : k));
-  }, []);
+  }, [snapshot]);
 
   /** Change the options on an existing line, keeping its quantity (and merging if it now matches another line). */
   const replaceLine = useCallback((oldKey: string, menuItemId: string, optionIds: string[]) => {
@@ -83,9 +90,18 @@ export function useCheck(items: MenuItem[], taxRateBps: number) {
   }, []);
 
   const clear = useCallback(() => {
+    snapshot();
     setLines([]);
     setSelectedKey(null);
-  }, []);
+  }, [snapshot]);
+
+  /** Step back one change. Covers a mis-tap, which is the common till mistake. */
+  const undo = useCallback(() => {
+    if (history.length === 0) return;
+    setLines(history[history.length - 1]);
+    setHistory((h) => h.slice(0, -1));
+    setSelectedKey(null);
+  }, [history]);
 
   const display = useMemo(() => {
     const out: DisplayLine[] = [];
@@ -124,5 +140,7 @@ export function useCheck(items: MenuItem[], taxRateBps: number) {
     remove,
     replaceLine,
     clear,
+    undo,
+    canUndo: history.length > 0,
   };
 }

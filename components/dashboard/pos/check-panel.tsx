@@ -19,6 +19,8 @@ type Props = {
   onRemove: (key: string) => void;
   onOptions: (line: DisplayLine) => void;
   onClear: () => void;
+  onUndo: () => void;
+  canUndo: boolean;
   onClose?: () => void; // only inside the phone sheet
   footer: React.ReactNode;
 };
@@ -36,6 +38,15 @@ export function CheckPanel(props: Props) {
         <h2 className="text-[1.0625rem] font-semibold">Check</h2>
         <span className="text-[0.9375rem] text-muted-foreground tabular-nums">{count}</span>
         <div className="ml-auto flex items-center gap-1">
+          {props.canUndo && (
+            <button
+              type="button"
+              onClick={props.onUndo}
+              className={cn("h-11 rounded-full px-3.5 text-[0.9375rem] font-semibold text-foreground", focus)}
+            >
+              Undo
+            </button>
+          )}
           {!empty && (
             <button
               type="button"

@@ -124,6 +124,8 @@ export function PosScreen({ sections, taxRateBps }: Props) {
         onSelect={check.setSelectedKey}
         onQuantity={check.setQuantity}
         onRemove={check.remove}
+        onUndo={check.undo}
+        canUndo={check.canUndo}
         onOptions={onEditOptions}
         onClear={() => {
           check.clear();

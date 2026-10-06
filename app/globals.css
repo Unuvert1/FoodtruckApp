@@ -22,6 +22,14 @@
   --color-new-tint-strong: var(--new-tint-strong);
   --color-new-pulse-peak: var(--new-pulse-peak);
 
+  /* POS dish tiles: a fixed pastel rotation, assigned by position. */
+  --color-dish-1: var(--dish-1);
+  --color-dish-2: var(--dish-2);
+  --color-dish-3: var(--dish-3);
+  --color-dish-4: var(--dish-4);
+  --color-dish-5: var(--dish-5);
+  --color-dish-6: var(--dish-6);
+
   --color-cooking: var(--cooking);
   --color-cooking-ink: var(--cooking-ink);
   --color-cooking-tint: var(--cooking-tint);
@@ -143,6 +151,15 @@
   --new-tint: #e6f4ea;
   --new-tint-strong: #d3ebdc;
   --new-pulse-peak: #8fd3ae;
+
+  /* Pastel enough that ink sits above 12:1 on every one of them. They carry
+     no meaning: the POS has no status to encode, so this is wayfinding only. */
+  --dish-1: #fbe4e6;
+  --dish-2: #fdf0d5;
+  --dish-3: #e3f1df;
+  --dish-4: #ddebf7;
+  --dish-5: #eae3f7;
+  --dish-6: #fce7d9;
 
   /* Queue zone: COOKING */
   --cooking: #9a6510;
