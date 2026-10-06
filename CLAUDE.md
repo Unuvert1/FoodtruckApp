@@ -44,7 +44,7 @@ Truck ─┬─ Membership (clerkUserId, role)
             └─ Order → OrderLineItem (price snapshots)
 ```
 
-Order status: `PENDING_PAYMENT → PAID → ACCEPTED → PREPARING → READY → PICKED_UP` (+ `CANCELLED`, `REFUNDED`).
+Order status: `PENDING_PAYMENT → PAID → PREPARING → READY → PICKED_UP` (+ `CANCELLED`, `REFUNDED`; `ACCEPTED` is legacy, never written). `READY` self-advances to `PICKED_UP` after 30 minutes.
 
 ## Hard rules
 

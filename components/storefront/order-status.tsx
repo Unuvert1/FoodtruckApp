@@ -8,11 +8,10 @@ import { OrderActions } from "@/components/storefront/order-actions";
 import { RefreshStatus } from "@/components/storefront/refresh-status";
 
 // Customer-facing progress, in the order it happens. Each kitchen status gets
-// its own step so the customer can see the truck accept their order.
+// its own step; ACCEPTED is legacy and shares the "Being prepared" step.
 const STEPS: { label: string; statuses: Status[] }[] = [
   { label: "Order sent", statuses: ["PAID"] },
-  { label: "Confirmed by the truck", statuses: ["ACCEPTED"] },
-  { label: "Being prepared", statuses: ["PREPARING"] },
+  { label: "Being prepared", statuses: ["ACCEPTED", "PREPARING"] },
   { label: "Ready at the window", statuses: ["READY"] },
   { label: "Picked up", statuses: ["PICKED_UP"] },
 ];
@@ -20,8 +19,8 @@ const STEPS: { label: string; statuses: Status[] }[] = [
 // The one line under the truck name: this is what changes when the truck taps Accept.
 const HEADLINE: Partial<Record<Status, (name: string) => string>> = {
   PAID: (n) => `Thanks, ${n}. Waiting for the truck to confirm.`,
-  ACCEPTED: (n) => `Confirmed, ${n}. We'll start it before your pickup time.`,
-  PREPARING: (n) => `${n}, your order is being made now.`,
+  ACCEPTED: (n) => `${n}, the truck has your order — it's being made.`,
+  PREPARING: (n) => `${n}, the truck has your order — it's being made.`,
   READY: (n) => `${n}, your order is ready.`,
   PICKED_UP: (n) => `Thanks, ${n}. Enjoy.`,
 };
@@ -122,6 +121,11 @@ export function OrderStatus({ truck, order, location, refresh }: Props) {
                   );
                 })}
               </ol>
+            )}
+            {!cancelled && order.autoCompletedAt && (
+              <p className="mt-3 text-sm text-muted-foreground">
+                We closed this order automatically 30 minutes after it was ready. If you didn&apos;t collect it, ask at the window.
+              </p>
             )}
           </section>
 

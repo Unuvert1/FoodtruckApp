@@ -234,7 +234,7 @@ function StockSwitch({
       onClick={() => onChange(!checked)}
       className={cn(
         "relative h-7 w-12 shrink-0 rounded-full transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-        checked ? "bg-ready" : "bg-foreground/20"
+        checked ? "bg-ok" : "bg-foreground/20"
       )}
     >
       <span

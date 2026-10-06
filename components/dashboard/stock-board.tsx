@@ -57,7 +57,7 @@ export function StockBoard({ sections }: { sections: ManagedSection[] }) {
                       aria-hidden
                       className={cn(
                         "inline-flex h-8 min-w-[5.5rem] items-center justify-center rounded-full px-3 text-sm font-bold",
-                        available ? "bg-ready/10 text-ready" : "bg-foreground text-background"
+                        available ? "bg-ok/10 text-ok" : "bg-foreground text-background"
                       )}
                     >
                       {available ? "In stock" : "Sold out"}

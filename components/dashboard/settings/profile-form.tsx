@@ -154,7 +154,7 @@ function AddressSection({ slug, appHost, customDomain }: { slug: string; appHost
         )}
 
         {result && (
-          <p role="status" className={result.ok ? "mt-2 text-sm text-ready" : "mt-2 text-sm font-medium text-destructive"}>
+          <p role="status" className={result.ok ? "mt-2 text-sm text-ok" : "mt-2 text-sm font-medium text-destructive"}>
             {result.ok ? "Address changed." : result.error}
           </p>
         )}

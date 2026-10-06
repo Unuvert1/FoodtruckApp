@@ -12,7 +12,7 @@ import { prisma } from "@/lib/db";
 import { DEV_AUTH_BYPASS, getUserId } from "@/lib/dev-auth";
 import { Prisma } from "@/lib/generated/prisma/client";
 import type { MembershipRole, OrderStatus, ServiceStatus } from "@/lib/generated/prisma/enums";
-import { ACTIVE_STATUSES } from "@/lib/orders/status";
+import { ACTIVE_STATUSES, AUTO_COMPLETE_AFTER_MINUTES } from "@/lib/orders/status";
 import type {
   Location,
   ManagedSection,
@@ -175,18 +175,29 @@ function toOrderView(row: OrderRow): OrderView {
     status: row.status,
     customerName: row.customerName,
     customerPhone: row.customerPhone,
+    customerEmail: row.customerEmail,
     pickupAt: row.pickupSlot.startsAt.toISOString(),
+    placedAt: row.placedAt.toISOString(),
+    acceptedAt: row.acceptedAt?.toISOString() ?? null,
+    readyAt: row.readyAt?.toISOString() ?? null,
+    pickedUpAt: row.pickedUpAt?.toISOString() ?? null,
+    autoCompletedAt: row.autoCompletedAt?.toISOString() ?? null,
     lines: row.lineItems.map((l) => ({
       id: l.id,
       name: l.nameSnapshot,
       quantity: l.quantity,
       modifiers: modifierNames(l.modifiersSnapshot),
+      unitPriceCents: l.unitPriceCents,
       lineTotalCents: l.lineTotalCents,
+      voidedAt: l.voidedAt?.toISOString() ?? null,
+      voidedReason: l.voidedReason,
+      voidedCents: l.voidedCents,
     })),
     subtotalCents: row.subtotalCents,
     taxCents: row.taxCents,
     tipCents: row.tipCents,
     totalCents: row.totalCents,
+    refundedCents: row.refundedCents,
   };
 }
 
@@ -430,12 +441,87 @@ export async function getDashboardServices(truckId: string, now: Date): Promise<
 
 /** Paid orders for one service, in pickup order. Unpaid checkouts aren't the kitchen's business yet. */
 export async function getServiceOrders(truckId: string, serviceId: string): Promise<OrderView[]> {
+  await sweepAutoCompleted(truckId, { serviceId, now: new Date() });
   const rows = await prisma.order.findMany({
     where: { truckId, serviceId, status: { notIn: ["PENDING_PAYMENT"] } },
     include: orderInclude,
     orderBy: [{ pickupSlot: { startsAt: "asc" } }, { placedAt: "asc" }],
   });
   return rows.map(toOrderView);
+}
+
+/** READY → PICKED_UP for anything ready longer than AUTO_COMPLETE_AFTER_MINUTES. */
+export async function sweepAutoCompleted(
+  truckId: string,
+  opts: { serviceId?: string; now: Date }
+): Promise<number> {
+  const cutoff = new Date(opts.now.getTime() - AUTO_COMPLETE_AFTER_MINUTES * 60_000);
+  const { count } = await prisma.order.updateMany({
+    where: {
+      truckId,
+      ...(opts.serviceId && { serviceId: opts.serviceId }),
+      status: "READY", // the gate
+      readyAt: { lte: cutoff },
+    },
+    data: { status: "PICKED_UP", pickedUpAt: opts.now, autoCompletedAt: opts.now },
+  });
+  return count;
+}
+
+/** One order for the vendor's detail route. Sweeps stale READY orders first. */
+export async function getOrderDetail(truckId: string, orderId: string): Promise<OrderView | null> {
+  await sweepAutoCompleted(truckId, { now: new Date() });
+  const row = await prisma.order.findFirst({ where: { id: orderId, truckId }, include: orderInclude });
+  return row ? toOrderView(row) : null;
+}
+
+/** The current status, for making an advance idempotent against the sweep. */
+export async function getOrderStatus(truckId: string, orderId: string): Promise<OrderStatus | null> {
+  const row = await prisma.order.findFirst({ where: { id: orderId, truckId }, select: { status: true } });
+  return row?.status ?? null;
+}
+
+/**
+ * Mark one line item removed, optionally recording a refund owed. One
+ * transaction: a conditional update gated on voidedAt: null, then bump
+ * Order.refundedCents. Never rewrites a price snapshot.
+ */
+export async function voidOrderLineItem(
+  truckId: string,
+  orderId: string,
+  lineItemId: string,
+  opts: { reason: "SOLD_OUT" | "CUSTOMER_REQUEST" | "MISTAKE"; refund: boolean; now: Date }
+): Promise<"voided" | "already" | "missing"> {
+  return prisma.$transaction(async (tx) => {
+    const line = await tx.orderLineItem.findFirst({
+      where: {
+        id: lineItemId,
+        orderId,
+        order: { truckId, status: { in: [...ACTIVE_STATUSES, "PICKED_UP"] } },
+      },
+      select: { lineTotalCents: true, voidedAt: true },
+    });
+    if (!line) return "missing";
+    if (line.voidedAt) return "already";
+
+    const cents = opts.refund ? line.lineTotalCents : 0; // integer cents, excl. tax
+    const { count } = await tx.orderLineItem.updateMany({
+      where: { id: lineItemId, orderId, voidedAt: null }, // the gate
+      data: { voidedAt: opts.now, voidedReason: opts.reason, voidedCents: cents },
+    });
+    if (count !== 1) return "already";
+
+    if (cents > 0) {
+      await tx.order.updateMany({
+        where: { id: orderId, truckId },
+        data: { refundedCents: { increment: cents } },
+      });
+    }
+    // TODO(Stream C): issue the partial Stripe refund for `cents` here, and
+    // apportion tax + platform fee. Until then refundedCents is a record of
+    // what the truck owes, settled at the window.
+    return "voided";
+  });
 }
 
 /**
@@ -453,6 +539,7 @@ export async function advanceOrderStatus(
     where: { id: orderId, truckId, status: from },
     data: {
       status: to,
+      ...(to === "PREPARING" && from === "PAID" && { acceptedAt: now }),
       ...(to === "READY" && { readyAt: now }),
       ...(to === "PICKED_UP" && { pickedUpAt: now }),
     },

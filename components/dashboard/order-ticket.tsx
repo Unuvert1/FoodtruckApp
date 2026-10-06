@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { OrderView } from "@/lib/types";
 import { ADVANCE_LABEL, STATUS_LABEL, isAdvanceable } from "@/lib/orders/status";
 import { formatTime } from "@/lib/time";
@@ -14,11 +15,10 @@ type Props = {
   /** Plays the arrival animation (new orders only). */
   arriving: boolean;
   onAdvance: () => void;
-  onOpenDetails: () => void;
 };
 
 /** One row in the queue. Presentational: callbacks only, no data or actions. */
-export function OrderTicket({ order, tone, timezone, arriving, onAdvance, onOpenDetails }: Props) {
+export function OrderTicket({ order, tone, timezone, arriving, onAdvance }: Props) {
   const time = formatTime(order.pickupAt, timezone);
   const meta = tone === "new" ? `${time} pickup` : `${time} · ${STATUS_LABEL[order.status]}`;
   const summary = order.lines.map((l) => `${l.quantity}× ${l.name}`).join(" · ");
@@ -32,7 +32,7 @@ export function OrderTicket({ order, tone, timezone, arriving, onAdvance, onOpen
       )}
     >
       {tone !== "cooking" && (
-        <span aria-hidden className={cn("absolute inset-y-0 left-0 w-1", tone === "new" ? "bg-signal" : "bg-ready")} />
+        <span aria-hidden className={cn("absolute inset-y-0 left-0 w-1", tone === "new" ? "bg-new" : "bg-ready")} />
       )}
 
       <div className="min-w-0">
@@ -67,23 +67,20 @@ export function OrderTicket({ order, tone, timezone, arriving, onAdvance, onOpen
           className={cn(
             "min-w-0 flex-1 rounded-xl text-[1.0625rem] font-bold outline-none focus-visible:ring-4 focus-visible:ring-foreground/30 md:w-44 md:flex-none",
             tone === "new" ? "h-16" : "h-14",
-            tone === "new" && "bg-signal text-signal-foreground hover:bg-signal/85",
-            tone === "cooking" && "bg-brand text-brand-foreground hover:bg-brand/90",
-            tone === "ready" && "bg-ready text-white hover:bg-ready/90"
+            tone === "new" && "bg-new text-new-foreground hover:bg-new/90",
+            tone === "cooking" && "border border-cooking bg-cooking-tint text-cooking-ink hover:bg-cooking-tint/70",
+            tone === "ready" && "border border-ready bg-ready-tint-strong text-ready-ink hover:bg-ready-tint-strong/70"
           )}
         >
           {isAdvanceable(order.status) && ADVANCE_LABEL[order.status]}
         </button>
-        {tone !== "new" && (
-          <button
-            type="button"
-            onClick={onOpenDetails}
-            aria-label={`Details for order ${order.orderNumber}`}
-            className="flex size-14 shrink-0 items-center justify-center rounded-xl border border-border text-xl leading-none font-bold outline-none focus-visible:ring-4 focus-visible:ring-foreground/30"
-          >
-            <span aria-hidden>⋯</span>
-          </button>
-        )}
+        <Link
+          href={`/dashboard/orders/${order.id}`}
+          aria-label={`Details for order ${order.orderNumber}`}
+          className="flex size-14 shrink-0 items-center justify-center rounded-xl border border-border text-xl leading-none font-bold outline-none focus-visible:ring-4 focus-visible:ring-foreground/30"
+        >
+          <span aria-hidden>⋯</span>
+        </Link>
       </div>
     </li>
   );

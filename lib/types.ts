@@ -106,24 +106,37 @@ export type OrderStatus =
   | "REFUNDED";
 
 /** An order as a customer or vendor sees it. Lines are the price snapshots taken at checkout. */
+export type OrderLine = {
+  id: string;
+  name: string;
+  quantity: number;
+  modifiers: string[]; // names only; the snapshot's price deltas stay server-side
+  unitPriceCents: number;
+  lineTotalCents: number;
+  voidedAt: string | null;
+  voidedReason: string | null;
+  voidedCents: number;
+};
+
 export type OrderView = {
   id: string;
   orderNumber: string;
   status: OrderStatus;
   customerName: string;
   customerPhone: string;
+  customerEmail: string | null;
   pickupAt: string;
-  lines: {
-    id: string;
-    name: string;
-    quantity: number;
-    modifiers: string[];
-    lineTotalCents: number;
-  }[];
+  placedAt: string;
+  acceptedAt: string | null;
+  readyAt: string | null;
+  pickedUpAt: string | null;
+  autoCompletedAt: string | null;
+  lines: OrderLine[];
   subtotalCents: number;
   taxCents: number;
   tipCents: number;
   totalCents: number;
+  refundedCents: number;
 };
 
 // ─── Dashboard ─────────────────────────────────────────────────────────────

@@ -272,6 +272,9 @@ model Order {
   placedAt                DateTime    @default(now())
   readyAt                 DateTime?
   pickedUpAt              DateTime?
+  acceptedAt              DateTime? // set when the vendor taps Accept (PAID → PREPARING)
+  autoCompletedAt         DateTime? // set by the 30-minute READY sweep, not by a human tap
+  refundedCents           Int         @default(0) // sum of voided line items; no money has moved yet
   source                  OrderSource @default(WEB)
   updatedAt               DateTime    @updatedAt
 
@@ -283,6 +286,7 @@ model Order {
   @@unique([serviceId, orderNumber])
   @@index([truckId, status])
   @@index([status, placedAt]) // the unpaid-order sweep
+  @@index([status, readyAt]) // the 30-minute auto-complete sweep
 }
 
 // A snapshot of what was bought, at the price paid. Never re-join to the live menu.
@@ -295,6 +299,9 @@ model OrderLineItem {
   quantity          Int
   modifiersSnapshot Json // [{ group, name, priceDeltaCents }]
   lineTotalCents    Int
+  voidedAt          DateTime? // the vendor removed this line after the fact
+  voidedReason      String? // "SOLD_OUT" | "CUSTOMER_REQUEST" | "MISTAKE"
+  voidedCents       Int       @default(0) // refund owed for this line, excl. tax
 
   order    Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   menuItem MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)

@@ -172,7 +172,7 @@ function LocationForm({ location, onSaved }: { location: Location | null; onSave
           </p>
         )}
         {note && (
-          <p role="status" className="text-sm text-ready">
+          <p role="status" className="text-sm text-ok">
             {note}
           </p>
         )}

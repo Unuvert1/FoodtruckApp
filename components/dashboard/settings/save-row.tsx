@@ -19,7 +19,7 @@ export function SaveRow({
   return (
     <div className="flex flex-col gap-3 px-5 py-4 md:flex-row md:items-center md:justify-end">
       {result && (
-        <p role="status" className={result.ok ? "text-sm text-ready md:mr-auto" : "text-sm font-medium text-destructive md:mr-auto"}>
+        <p role="status" className={result.ok ? "text-sm text-ok md:mr-auto" : "text-sm font-medium text-destructive md:mr-auto"}>
           {result.ok ? (result.note ?? successText) : result.error}
         </p>
       )}

@@ -14,6 +14,7 @@ import {
   createMenuItem,
   createSection,
   createTruckForUser,
+  getOrderStatus,
   isSlugTaken,
   joinDemoTruck,
   requireTruckAccess,
@@ -46,9 +47,13 @@ export async function advanceOrder(input: z.input<typeof advanceSchema>): Promis
   if (!parsed.success) return fail("That order can't be updated.");
   const { orderId, from } = parsed.data;
 
-  const moved = await advanceOrderStatus(truck.id, orderId, from, NEXT_STATUS[from]);
+  const to = NEXT_STATUS[from];
+  const moved = await advanceOrderStatus(truck.id, orderId, from, to);
   refresh(truck.slug);
-  return moved ? { ok: true } : fail("This order was already updated. The queue has been refreshed.");
+  if (moved) return { ok: true };
+  // The 30-minute sweep (or another tab) may have already put it there.
+  if ((await getOrderStatus(truck.id, orderId)) === to) return { ok: true };
+  return fail("This order was already updated. The queue has been refreshed.");
 }
 
 export async function cancelOrderAction(orderId: string): Promise<ActionResult> {

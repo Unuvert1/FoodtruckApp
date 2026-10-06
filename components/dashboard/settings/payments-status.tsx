@@ -6,7 +6,7 @@ import type { PaymentStatus } from "@/lib/types";
 function statusOf({ accountId, onboarded }: PaymentStatus) {
   if (!accountId) return { label: "Not connected", className: "bg-muted text-muted-foreground" };
   if (!onboarded) return { label: "Setup incomplete", className: "bg-signal text-signal-foreground" };
-  return { label: "Connected", className: "bg-ready text-white" };
+  return { label: "Connected", className: "bg-ok text-white" };
 }
 
 export function PaymentsStatus({ status }: { status: PaymentStatus }) {

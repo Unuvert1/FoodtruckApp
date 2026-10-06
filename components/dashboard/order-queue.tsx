@@ -6,10 +6,10 @@ import { ChevronRight } from "lucide-react";
 import type { OrderStatus, OrderView, Truck } from "@/lib/types";
 import { ACTIVE_STATUSES, NEXT_STATUS, STATUS_LABEL, isAdvanceable } from "@/lib/orders/status";
 import { formatCents } from "@/lib/money";
-import { advanceOrder, cancelOrderAction } from "@/app/(dashboard)/dashboard/actions";
+import { advanceOrder } from "@/app/(dashboard)/dashboard/actions";
 import { ErrorBanner } from "@/components/dashboard/error-banner";
+import { cn } from "@/lib/utils";
 import { OrderTicket, type TicketTone } from "@/components/dashboard/order-ticket";
-import { TicketSheet } from "@/components/dashboard/ticket-sheet";
 
 type Change = { id: string; status: OrderStatus };
 
@@ -24,7 +24,6 @@ export function OrderQueue({ truck, orders, arrived }: { truck: Truck; orders: O
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [detailId, setDetailId] = useState<string | null>(null);
 
   // Tickets move the instant they're tapped; the server confirms in the background.
   const [shown, applyChange] = useOptimistic(orders, (state, change: Change) =>
@@ -38,18 +37,6 @@ export function OrderQueue({ truck, orders, arrived }: { truck: Truck; orders: O
     startTransition(async () => {
       applyChange({ id: order.id, status: NEXT_STATUS[from] });
       const result = await advanceOrder({ orderId: order.id, from });
-      if (!result.ok) {
-        setError(result.error);
-        router.refresh();
-      }
-    });
-  }
-
-  function cancel(order: OrderView) {
-    setError(null);
-    startTransition(async () => {
-      applyChange({ id: order.id, status: "CANCELLED" });
-      const result = await cancelOrderAction(order.id);
       if (!result.ok) {
         setError(result.error);
         router.refresh();
@@ -79,7 +66,14 @@ export function OrderQueue({ truck, orders, arrived }: { truck: Truck; orders: O
               <h2 className="px-4 pb-2 text-[0.8125rem] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
                 {zone.label} · {tickets.length}
               </h2>
-              <ul className="divide-y divide-border overflow-hidden bg-surface md:rounded-2xl">
+              <ul
+                className={cn(
+                  "divide-y divide-border overflow-hidden md:rounded-2xl",
+                  zone.tone === "new" && "bg-new-tint-strong motion-safe:bg-new-tint motion-safe:animate-new-pulse",
+                  zone.tone === "cooking" && "bg-surface",
+                  zone.tone === "ready" && "bg-ready-tint"
+                )}
+              >
                 {tickets.map((order) => (
                   <OrderTicket
                     key={order.id}
@@ -88,7 +82,6 @@ export function OrderQueue({ truck, orders, arrived }: { truck: Truck; orders: O
                     timezone={truck.timezone}
                     arriving={order.status === "PAID" && arrived.includes(order.id)}
                     onAdvance={() => advance(order)}
-                    onOpenDetails={() => setDetailId(order.id)}
                   />
                 ))}
               </ul>
@@ -108,19 +101,15 @@ export function OrderQueue({ truck, orders, arrived }: { truck: Truck; orders: O
               <li key={o.id} className="flex items-center gap-3 px-4 py-3 text-[0.8125rem]">
                 <span className="w-10 text-base font-semibold tabular-nums">{o.orderNumber}</span>
                 <span className="flex-1 truncate">{o.customerName}</span>
-                <span className="text-muted-foreground">{STATUS_LABEL[o.status]}</span>
+                <span className="text-muted-foreground">
+                  {o.status === "PICKED_UP" && o.autoCompletedAt ? "Picked up (auto)" : STATUS_LABEL[o.status]}
+                </span>
                 <span className="w-16 text-right tabular-nums">{formatCents(o.totalCents)}</span>
               </li>
             ))}
           </ul>
         </details>
       )}
-
-      <TicketSheet
-        order={shown.find((o) => o.id === detailId && ACTIVE_STATUSES.includes(o.status)) ?? null}
-        onClose={() => setDetailId(null)}
-        onCancel={cancel}
-      />
     </div>
   );
 }
