@@ -1,7 +1,7 @@
 import { MapPin } from "lucide-react";
 import type { Location, PickupSlot, Service, Truck } from "@/lib/types";
 import { formatDayLabel, formatTime, formatTimeRange, formatWhen } from "@/lib/time";
-import { isHappeningNow, mapsUrl, orderingWindow } from "@/lib/service";
+import { directionsUrl, isHappeningNow, orderingWindow } from "@/lib/service";
 
 type Props = {
   truck: Truck;
@@ -60,7 +60,7 @@ export function ServiceHero({ truck, service, location, firstSlot, now }: Props)
             <p>
               {location.addressLine}, {location.city}{" "}
               <a
-                href={mapsUrl(location.lat, location.lng, `${location.addressLine}, ${location.city}`)}
+                href={directionsUrl(location)}
                 target="_blank"
                 rel="noreferrer"
                 className="font-semibold underline underline-offset-4 focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-foreground"

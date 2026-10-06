@@ -21,9 +21,13 @@ export type Location = {
   name: string;
   addressLine: string;
   city: string;
-  lat: number | null; // null when the vendor saved the spot without a map link
+  region: string; // state/province; "" when unknown
+  postcode: string;
+  lat: number | null; // null when the vendor saved the spot without coordinates
   lng: number | null;
-  notes: string | null;
+  notes: string | null; // parking note
+  provider: string; // "geoapify" | "photon" | "manual"
+  providerPlaceId: string | null;
   archivedAt: string | null;
 };
 
@@ -40,6 +44,7 @@ export type Service = {
   slotMinutes: number;
   ordersPerSlot: number;
   status: ServiceStatus;
+  publicNote: string; // one-off note for this stop only; "" when none
 };
 
 export type PickupSlot = {
@@ -173,4 +178,23 @@ export type TeamMember = {
   clerkUserId: string;
   role: "OWNER" | "STAFF";
   joinedAt: string;
+};
+
+// ─── Dashboard schedule ────────────────────────────────────────────────────
+
+/** A stop on the vendor's schedule, with how many live orders hang off it. */
+export type ScheduleRow = { service: Service; location: Location; orderCount: number };
+
+/** The stop form's values, in the wall-clock terms its inputs speak (the truck's timezone). */
+export type StopDraft = {
+  serviceId?: string; // present = editing that stop
+  locationId: string | null;
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:mm
+  endTime: string;
+  opensHoursBefore: number; // 0 = as soon as the stop is published
+  closesMinutesBefore: number;
+  slotMinutes: number;
+  ordersPerSlot: number;
+  publicNote: string;
 };

@@ -86,9 +86,13 @@ function toLocation(row: Prisma.LocationGetPayload<object>): Location {
     name: row.name,
     addressLine: row.addressLine,
     city: row.city,
+    region: row.region,
+    postcode: row.postcode,
     lat: row.lat,
     lng: row.lng,
     notes: row.notes,
+    provider: row.provider,
+    providerPlaceId: row.providerPlaceId,
     archivedAt: row.archivedAt?.toISOString() ?? null,
   };
 }
@@ -105,6 +109,7 @@ function toService(row: Prisma.ServiceGetPayload<object>): Service {
     slotMinutes: row.slotMinutes,
     ordersPerSlot: row.ordersPerSlot,
     status: row.status,
+    publicNote: row.publicNote,
   };
 }
 
