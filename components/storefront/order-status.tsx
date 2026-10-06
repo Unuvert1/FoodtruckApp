@@ -22,6 +22,10 @@ export function OrderStatus({ truck, order, location }: { truck: Truck; order: O
 
   return (
     <main className="mx-auto max-w-2xl pb-16">
+      {/* The page refreshes itself while the order is active. This tells screen reader users when the status moves. */}
+      <p role="status" className="sr-only">
+        {cancelled ? "Order cancelled." : current >= 0 ? `Order status: ${STEPS[current].label}.` : ""}
+      </p>
       <section className="bg-brand px-4 pt-8 pb-8 text-brand-foreground sm:rounded-b-3xl">
         <p className="font-display text-xl font-bold tracking-wide">{truck.name}</p>
         <p className="mt-8 text-base font-medium">
@@ -74,7 +78,11 @@ export function OrderStatus({ truck, order, location }: { truck: Truck; order: O
                   </span>
                   <span className={cn(done ? "font-semibold" : "text-muted-foreground")}>
                     {step.label}
-                    {i === current && <span className="sr-only"> (current step)</span>}
+                    {i === current ? (
+                      <span className="sr-only"> (current step)</span>
+                    ) : (
+                      done && <span className="sr-only"> (done)</span>
+                    )}
                   </span>
                 </li>
               );

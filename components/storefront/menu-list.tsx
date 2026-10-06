@@ -16,6 +16,25 @@ type Props = {
 export function MenuList({ menu, canOrder, closedReason }: Props) {
   const [openItem, setOpenItem] = useState<MenuItem | null>(null);
 
+  // A stop can be published before the vendor has added anything to its menu.
+  if (menu.sections.length === 0) {
+    return (
+      <section id="menu" aria-labelledby="menu-heading" className="scroll-mt-4 pt-10">
+        <div className="mx-auto max-w-2xl px-4">
+          <h2 id="menu-heading" className="font-display text-[1.75rem] leading-tight font-bold">
+            Menu
+          </h2>
+          <div className="mt-3 rounded-2xl bg-surface px-5 py-8">
+            <p className="font-semibold">The menu isn&apos;t up yet.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              The truck hasn&apos;t added items for this stop. Check back soon, or come see what&apos;s on at the window.
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section id="menu" aria-labelledby="menu-heading" className="scroll-mt-4 pt-10">
       <div className="mx-auto max-w-2xl px-4">

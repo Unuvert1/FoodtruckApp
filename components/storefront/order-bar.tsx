@@ -21,6 +21,7 @@ export function OrderBar({ menu, checkoutHref }: { menu: Menu; checkoutHref: str
       >
         <span className="flex size-7 items-center justify-center rounded-full bg-brand-foreground text-sm font-bold text-brand tabular-nums">
           {count}
+          <span className="sr-only"> {count === 1 ? "item" : "items"} in your order</span>
         </span>
         <span className="flex-1 text-base font-semibold">View order</span>
         <span className="text-base font-semibold tabular-nums">{formatCents(subtotal)}</span>

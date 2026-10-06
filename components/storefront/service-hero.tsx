@@ -65,7 +65,7 @@ export function ServiceHero({ truck, service, location, firstSlot, now }: Props)
                 rel="noreferrer"
                 className="font-semibold underline underline-offset-4 focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-foreground"
               >
-                Directions
+                Directions<span className="sr-only"> (opens in a new tab)</span>
               </a>
             </p>
             {location.notes && <p className="mt-1 opacity-80">{location.notes}</p>}

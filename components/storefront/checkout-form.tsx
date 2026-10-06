@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { cloneElement, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, Minus, Plus, Trash2 } from "lucide-react";
@@ -57,7 +57,14 @@ export function CheckoutForm({ truck, service, location, menu, slots }: Props) {
     setErrors(next);
     const firstError = Object.keys(next)[0];
     if (firstError) {
-      document.getElementById(`field-${firstError}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      document
+        .getElementById(`field-${firstError}`)
+        ?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
+      // Move keyboard / screen reader focus to the problem, not just the view.
+      const target =
+        firstError === "slot" ? document.querySelector<HTMLElement>("#field-slot [role='radio']") : document.getElementById(firstError);
+      target?.focus({ preventScroll: true });
       return;
     }
 
@@ -91,7 +98,7 @@ export function CheckoutForm({ truck, service, location, menu, slots }: Props) {
           href={menuHref}
           className="-ml-2 inline-flex h-10 items-center gap-1 rounded-lg px-2 text-sm font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-brand"
         >
-          <ChevronLeft className="size-4" />
+          <ChevronLeft aria-hidden className="size-4" />
           Back to menu
         </Link>
         <h1 className="mt-3 font-display text-[2.5rem] leading-none font-extrabold">Your order</h1>
@@ -237,6 +244,7 @@ export function CheckoutForm({ truck, service, location, menu, slots }: Props) {
             )}
             <Button
               type="submit"
+              aria-busy={placing}
               disabled={placing || slots.length === 0 || resolved.length === 0}
               className="mx-auto flex h-14 w-full max-w-2xl justify-between rounded-2xl px-5 text-base font-semibold"
             >
@@ -301,20 +309,29 @@ function Field({
   label: string;
   hint?: string;
   error?: string;
-  children: React.ReactElement<{ id: string }>;
+  children: React.ReactElement<{ id: string; "aria-describedby"?: string }>;
 }) {
+  // Tie the error (or hint) to the input so screen readers read it with the field.
+  const inputId = children.props.id;
+  const messageId = `${inputId}-message`;
+  const message = error ?? hint;
+
   return (
     <div id={id} className="scroll-mt-24">
-      <Label htmlFor={children.props.id} className="mb-2 text-sm font-semibold">
+      <Label htmlFor={inputId} className="mb-2 text-sm font-semibold">
         {label}
       </Label>
-      {children}
+      {cloneElement(children, { "aria-describedby": message ? messageId : undefined })}
       {error ? (
-        <p role="alert" className="mt-1.5 text-sm font-medium text-destructive">
+        <p id={messageId} role="alert" className="mt-1.5 text-sm font-medium text-destructive">
           {error}
         </p>
       ) : (
-        hint && <p className="mt-1.5 text-sm text-muted-foreground">{hint}</p>
+        hint && (
+          <p id={messageId} className="mt-1.5 text-sm text-muted-foreground">
+            {hint}
+          </p>
+        )
       )}
     </div>
   );
