@@ -5,6 +5,7 @@ import { formatCents } from "@/lib/money";
 import { formatDayLabel, formatTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { OrderActions } from "@/components/storefront/order-actions";
+import { RefreshStatus } from "@/components/storefront/refresh-status";
 
 // Customer-facing progress, in the order it happens. PAID and ACCEPTED both
 // read as "received": the customer doesn't need the distinction.
@@ -15,7 +16,15 @@ const STEPS: { label: string; statuses: Status[] }[] = [
   { label: "Picked up", statuses: ["PICKED_UP"] },
 ];
 
-export function OrderStatus({ truck, order, location }: { truck: Truck; order: OrderView; location: Location }) {
+type Props = {
+  truck: Truck;
+  order: OrderView;
+  location: Location;
+  /** Set while the page is polling, so the customer can see how fresh the status is. */
+  refresh?: { renderedAt: string; seconds: number };
+};
+
+export function OrderStatus({ truck, order, location, refresh }: Props) {
   const tz = truck.timezone;
   const cancelled = order.status === "CANCELLED" || order.status === "REFUNDED";
   const current = STEPS.findIndex((s) => s.statuses.includes(order.status));
@@ -65,6 +74,7 @@ export function OrderStatus({ truck, order, location }: { truck: Truck; order: O
 
       <section className="px-4 pt-8">
         <h2 className="font-display text-[1.5rem] leading-tight font-bold">Status</h2>
+        {refresh && <RefreshStatus renderedAt={refresh.renderedAt} seconds={refresh.seconds} />}
         {cancelled ? (
           <p className="mt-3 rounded-2xl bg-surface p-4">
             This order was cancelled. If you were charged, you&apos;ll be refunded. Questions? Ask at the window.

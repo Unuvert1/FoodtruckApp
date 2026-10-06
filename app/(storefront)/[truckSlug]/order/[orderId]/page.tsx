@@ -6,6 +6,8 @@ import { OrderStatus } from "@/components/storefront/order-status";
 
 export const dynamic = "force-dynamic";
 
+const POLL_SECONDS = 15;
+
 type Props = {
   params: Promise<{ truckSlug: string; orderId: string }>;
 };
@@ -34,8 +36,13 @@ export default async function OrderPage({ params }: Props) {
 
   return (
     <>
-      <OrderStatus truck={truck} order={found.order} location={found.location} />
-      {!done && <AutoRefresh seconds={15} />}
+      <OrderStatus
+        truck={truck}
+        order={found.order}
+        location={found.location}
+        refresh={done ? undefined : { renderedAt: new Date().toISOString(), seconds: POLL_SECONDS }}
+      />
+      {!done && <AutoRefresh seconds={POLL_SECONDS} />}
     </>
   );
 }
