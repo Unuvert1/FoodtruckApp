@@ -568,6 +568,11 @@ export async function cancelOrder(truckId: string, orderId: string): Promise<boo
   });
 }
 
+/** Orders still waiting to be accepted. Drives the nav cue on every dashboard page. */
+export async function countNewOrders(truckId: string): Promise<number> {
+  return prisma.order.count({ where: { truckId, status: "PAID" } });
+}
+
 // ─── Dashboard: menu management ────────────────────────────────────────────
 
 async function getDefaultMenuId(truckId: string): Promise<string | null> {

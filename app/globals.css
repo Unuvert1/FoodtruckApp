@@ -20,6 +20,7 @@
   --color-new-foreground: var(--new-foreground);
   --color-new-tint: var(--new-tint);
   --color-new-tint-strong: var(--new-tint-strong);
+  --color-new-pulse-peak: var(--new-pulse-peak);
 
   --color-cooking: var(--cooking);
   --color-cooking-ink: var(--cooking-ink);
@@ -58,7 +59,8 @@
 
   --animate-ticket-in: ticket-in 0.22s ease-out;
   --animate-signal-sweep: signal-sweep 1.1s ease-out;
-  --animate-new-pulse: new-pulse 2.4s ease-in-out infinite;
+  --animate-new-pulse: new-pulse 1.8s ease-in-out infinite;
+  --animate-tab-pulse: tab-pulse 1.8s ease-in-out infinite;
 }
 
 @keyframes ticket-in {
@@ -78,7 +80,18 @@
     background-color: var(--new-tint);
   }
   50% {
-    background-color: var(--new-tint-strong);
+    background-color: var(--new-pulse-peak);
+  }
+}
+
+/* The Service tab itself, so an unaccepted order is visible from any tab. */
+@keyframes tab-pulse {
+  0%,
+  100% {
+    background-color: var(--new-tint);
+  }
+  50% {
+    background-color: var(--new-pulse-peak);
   }
 }
 
@@ -129,6 +142,7 @@
   --new-foreground: #ffffff;
   --new-tint: #e6f4ea;
   --new-tint-strong: #d3ebdc;
+  --new-pulse-peak: #8fd3ae;
 
   /* Queue zone: COOKING */
   --cooking: #9a6510;
