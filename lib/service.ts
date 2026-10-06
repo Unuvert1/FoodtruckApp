@@ -18,6 +18,8 @@ export function pickDefaultService(services: Service[], now: Date = new Date()):
   return services.find((s) => orderingWindow(s, now) === "open") ?? services[0];
 }
 
-export function mapsUrl(lat: number, lng: number): string {
-  return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+/** Directions link. Falls back to the street address when a spot has no coordinates. */
+export function mapsUrl(lat: number | null, lng: number | null, address?: string): string {
+  const query = lat !== null && lng !== null ? `${lat},${lng}` : (address ?? "");
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }

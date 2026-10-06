@@ -19,7 +19,7 @@ export function isAdvanceable(status: OrderStatus): status is AdvanceableStatus 
 /** The button that moves an order out of this status. */
 export const ADVANCE_LABEL: Record<AdvanceableStatus, string> = {
   PAID: "Accept",
-  ACCEPTED: "Start preparing",
+  ACCEPTED: "Start",
   PREPARING: "Mark ready",
   READY: "Picked up",
 };

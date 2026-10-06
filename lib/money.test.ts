@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyBps, centsToInput, parseDollarsToCents } from "@/lib/money";
+import { applyBps, bpsToPercentInput, centsToInput, parseDollarsToCents, parsePercentToBps } from "@/lib/money";
 
 describe("parseDollarsToCents", () => {
   it.each([
@@ -37,5 +37,45 @@ describe("applyBps", () => {
   it("applies basis points in integer cents", () => {
     expect(applyBps(10000, 250)).toBe(250);
     expect(applyBps(4050, 1025)).toBe(415);
+  });
+});
+
+describe("parsePercentToBps", () => {
+  it.each([
+    ["8.25", 825],
+    ["8.25%", 825],
+    ["7", 700],
+    ["0", 0],
+    ["8.5", 850],
+    ["0.07", 7],
+    [" 10. ", 1000],
+    ["20", 2000],
+  ])("parses %j as %i bps", (input, bps) => {
+    expect(parsePercentToBps(input)).toBe(bps);
+  });
+
+  it("avoids the float trap: 8.35 is 835 bps", () => {
+    expect(parsePercentToBps("8.35")).toBe(835);
+    expect(parsePercentToBps("1.15")).toBe(115);
+  });
+
+  it.each(["", "abc", "-1", "8.255", "1e2", ".5", "8.2.5", "1000"])("rejects %j", (input) => {
+    expect(parsePercentToBps(input)).toBeNull();
+  });
+});
+
+describe("bpsToPercentInput", () => {
+  it("formats basis points as a percent string", () => {
+    expect(bpsToPercentInput(825)).toBe("8.25");
+    expect(bpsToPercentInput(850)).toBe("8.5");
+    expect(bpsToPercentInput(700)).toBe("7");
+    expect(bpsToPercentInput(0)).toBe("0");
+    expect(bpsToPercentInput(7)).toBe("0.07");
+  });
+
+  it("round-trips with parsePercentToBps", () => {
+    for (const bps of [0, 7, 100, 825, 850, 2000]) {
+      expect(parsePercentToBps(bpsToPercentInput(bps))).toBe(bps);
+    }
   });
 });

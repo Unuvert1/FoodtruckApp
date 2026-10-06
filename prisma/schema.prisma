@@ -58,6 +58,15 @@ model Truck {
   platformFeeBps       Int      @default(250)
   customDomain         String?  @unique
   notificationEmail    String? // where new-order emails go
+
+  // Defaults a new Service starts from. Changing these never touches a
+  // Service that already exists.
+  defaultSlotMinutes          Int @default(15)
+  defaultOrdersPerSlot        Int @default(4)
+  orderingOpensHoursBefore    Int @default(24)
+  orderingClosesMinutesBefore Int @default(15)
+  slotLeadMinutes             Int @default(10) // how soon a customer can book a slot
+
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -90,9 +99,10 @@ model Location {
   name        String
   addressLine String
   city        String
-  lat         Float
-  lng         Float
+  lat         Float? // null when the vendor pasted no map link
+  lng         Float?
   notes       String?
+  archivedAt  DateTime? // soft delete: a Service may reference this spot
 
   truck    Truck     @relation(fields: [truckId], references: [id], onDelete: Cascade)
   services Service[]

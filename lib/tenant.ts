@@ -19,17 +19,28 @@ import type {
   Menu,
   MenuItem,
   OrderView,
+  OrderingDefaults,
+  PaymentStatus,
   PickupSlot,
   Service,
+  TeamMember,
   Truck,
+  TruckSettings,
 } from "@/lib/types";
 import type { PricingItem } from "@/lib/pricing";
 import { formatOrderNumber } from "@/lib/orders/order-number";
 
 type Tx = Prisma.TransactionClient;
 
-/** Customers can't book a slot that starts sooner than this. */
-const SLOT_LEAD_MS = 10 * 60 * 1000;
+/** Fallback for how soon a customer can book a slot; each truck sets its own (Truck.slotLeadMinutes). */
+const DEFAULT_SLOT_LEAD_MINUTES = 10;
+
+/** The earliest slot start a customer may book on this truck. Read and reserve both use it. */
+async function earliestBookableStart(db: Tx | typeof prisma, truckId: string, now: Date): Promise<Date> {
+  const truck = await db.truck.findUnique({ where: { id: truckId }, select: { slotLeadMinutes: true } });
+  const minutes = truck?.slotLeadMinutes ?? DEFAULT_SLOT_LEAD_MINUTES;
+  return new Date(now.getTime() + minutes * 60 * 1000);
+}
 
 /** Services customers can see and order from. DRAFT, ENDED, and CANCELLED stay hidden. */
 const VISIBLE_SERVICE_STATUSES: ServiceStatus[] = ["PUBLISHED", "LIVE"];
@@ -50,6 +61,25 @@ function toTruck(row: TruckRow): Truck {
   };
 }
 
+function toTruckSettings(row: TruckRow): TruckSettings {
+  return {
+    name: row.name,
+    slug: row.slug,
+    tagline: row.tagline,
+    logoUrl: row.logoUrl,
+    customDomain: row.customDomain,
+    brandColor: row.brandColor,
+    brandColorForeground: row.brandColorForeground,
+    heroImageUrl: row.heroImageUrl,
+    timezone: row.timezone,
+    taxRateBps: row.taxRateBps,
+    platformFeeBps: row.platformFeeBps,
+    notificationEmail: row.notificationEmail,
+    stripeAccountId: row.stripeAccountId,
+    stripeOnboarded: row.stripeOnboarded,
+  };
+}
+
 function toLocation(row: Prisma.LocationGetPayload<object>): Location {
   return {
     id: row.id,
@@ -59,6 +89,7 @@ function toLocation(row: Prisma.LocationGetPayload<object>): Location {
     lat: row.lat,
     lng: row.lng,
     notes: row.notes,
+    archivedAt: row.archivedAt?.toISOString() ?? null,
   };
 }
 
@@ -256,7 +287,7 @@ export async function getBookableSlots(truckId: string, serviceId: string, now: 
     where: {
       serviceId,
       service: { truckId },
-      startsAt: { gte: new Date(now.getTime() + SLOT_LEAD_MS) },
+      startsAt: { gte: await earliestBookableStart(prisma, truckId, now) },
       bookedCount: { lt: prisma.pickupSlot.fields.capacity },
     },
     orderBy: { startsAt: "asc" },
@@ -313,12 +344,13 @@ export async function getPricingItems(tx: Tx, truckId: string, itemIds: string[]
  * (bookedCount < capacity), so two customers can never both get the last seat.
  */
 export async function reserveSlot(tx: Tx, truckId: string, serviceId: string, slotId: string, now: Date) {
+  const earliest = await earliestBookableStart(tx, truckId, now);
   const { count } = await tx.pickupSlot.updateMany({
     where: {
       id: slotId,
       serviceId,
       service: { truckId },
-      startsAt: { gte: new Date(now.getTime() + SLOT_LEAD_MS) },
+      startsAt: { gte: earliest },
       bookedCount: { lt: tx.pickupSlot.fields.capacity },
     },
     data: { bookedCount: { increment: 1 } },
@@ -558,6 +590,149 @@ export async function updateNotificationEmail(truckId: string, email: string | n
 
 export async function isSlugTaken(slug: string): Promise<boolean> {
   return (await prisma.truck.count({ where: { slug } })) > 0;
+}
+
+// ─── Dashboard: settings sections ──────────────────────────────────────────
+
+export async function getTruckSettings(truckId: string): Promise<TruckSettings> {
+  return toTruckSettings(await prisma.truck.findUniqueOrThrow({ where: { id: truckId } }));
+}
+
+export async function getOrderingDefaults(truckId: string): Promise<OrderingDefaults> {
+  return prisma.truck.findUniqueOrThrow({
+    where: { id: truckId },
+    select: {
+      timezone: true,
+      defaultSlotMinutes: true,
+      defaultOrdersPerSlot: true,
+      orderingOpensHoursBefore: true,
+      orderingClosesMinutesBefore: true,
+      slotLeadMinutes: true,
+    },
+  });
+}
+
+export async function getPaymentStatus(truckId: string): Promise<PaymentStatus> {
+  const row = await prisma.truck.findUniqueOrThrow({
+    where: { id: truckId },
+    select: { stripeAccountId: true, stripeOnboarded: true },
+  });
+  return { accountId: row.stripeAccountId, onboarded: row.stripeOnboarded };
+}
+
+export async function getLocations(truckId: string, opts: { includeArchived?: boolean } = {}): Promise<Location[]> {
+  const rows = await prisma.location.findMany({
+    where: { truckId, ...(opts.includeArchived ? {} : { archivedAt: null }) },
+    orderBy: [{ archivedAt: { sort: "asc", nulls: "first" } }, { name: "asc" }],
+  });
+  return rows.map(toLocation);
+}
+
+export async function getTeam(truckId: string): Promise<TeamMember[]> {
+  const rows = await prisma.membership.findMany({ where: { truckId }, orderBy: { createdAt: "asc" } });
+  return rows.map((m) => ({
+    id: m.id,
+    clerkUserId: m.clerkUserId,
+    role: m.role,
+    joinedAt: m.createdAt.toISOString(),
+  }));
+}
+
+export async function updateTruckProfile(
+  truckId: string,
+  data: { name: string; tagline: string; logoUrl: string | null }
+): Promise<void> {
+  await prisma.truck.update({ where: { id: truckId }, data });
+}
+
+/** Changes the storefront URL. Returns the old slug so the caller can revalidate it. */
+export async function updateTruckSlug(truckId: string, slug: string): Promise<{ ok: boolean; oldSlug: string }> {
+  const current = await prisma.truck.findUniqueOrThrow({ where: { id: truckId }, select: { slug: true } });
+  if (current.slug === slug) return { ok: true, oldSlug: current.slug };
+  try {
+    await prisma.truck.update({ where: { id: truckId }, data: { slug } });
+  } catch (error) {
+    // Lost a race for the same slug: the unique index is the real guard.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return { ok: false, oldSlug: current.slug };
+    }
+    throw error;
+  }
+  return { ok: true, oldSlug: current.slug };
+}
+
+export async function updateStorefront(
+  truckId: string,
+  data: { brandColor: string; brandColorForeground: string; heroImageUrl: string | null }
+): Promise<void> {
+  await prisma.truck.update({ where: { id: truckId }, data });
+}
+
+export type LocationInput = {
+  name: string;
+  addressLine: string;
+  city: string;
+  lat?: number | null; // left out = keep what is stored
+  lng?: number | null;
+  notes: string | null;
+};
+
+/** Creates a location (locationId null) or edits one of this truck's. False if it isn't theirs. */
+export async function upsertLocation(truckId: string, locationId: string | null, data: LocationInput): Promise<boolean> {
+  if (!locationId) {
+    await prisma.location.create({ data: { ...data, truckId } });
+    return true;
+  }
+  const { count } = await prisma.location.updateMany({ where: { id: locationId, truckId }, data });
+  return count === 1;
+}
+
+/** Soft delete: a Service may point at this spot, so it is hidden, never removed. */
+export async function setLocationArchived(truckId: string, locationId: string, archived: boolean): Promise<boolean> {
+  const { count } = await prisma.location.updateMany({
+    where: { id: locationId, truckId },
+    data: { archivedAt: archived ? new Date() : null },
+  });
+  return count === 1;
+}
+
+export async function updateOrderingDefaults(truckId: string, data: OrderingDefaults): Promise<void> {
+  await prisma.truck.update({ where: { id: truckId }, data });
+}
+
+export async function updateTaxRateBps(truckId: string, bps: number): Promise<void> {
+  await prisma.truck.update({ where: { id: truckId }, data: { taxRateBps: bps } });
+}
+
+/**
+ * Change a member's role. Refuses if it would leave the truck without an owner.
+ * The check and the write share one transaction.
+ */
+export async function setMemberRole(truckId: string, membershipId: string, role: MembershipRole): Promise<boolean> {
+  return prisma.$transaction(async (tx) => {
+    const member = await tx.membership.findFirst({ where: { id: membershipId, truckId } });
+    if (!member) return false;
+    if (member.role === "OWNER" && role !== "OWNER") {
+      const owners = await tx.membership.count({ where: { truckId, role: "OWNER" } });
+      if (owners <= 1) return false;
+    }
+    await tx.membership.update({ where: { id: member.id }, data: { role } });
+    return true;
+  });
+}
+
+/** Remove a member (a membership is referenced by nothing else). Keeps at least one owner. */
+export async function deleteMember(truckId: string, membershipId: string): Promise<boolean> {
+  return prisma.$transaction(async (tx) => {
+    const member = await tx.membership.findFirst({ where: { id: membershipId, truckId } });
+    if (!member) return false;
+    if (member.role === "OWNER") {
+      const owners = await tx.membership.count({ where: { truckId, role: "OWNER" } });
+      if (owners <= 1) return false;
+    }
+    await tx.membership.delete({ where: { id: member.id } });
+    return true;
+  });
 }
 
 /** A brand-new truck, owned by this user, with an empty default menu. */

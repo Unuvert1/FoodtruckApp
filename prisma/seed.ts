@@ -188,6 +188,11 @@ async function main() {
     brandColorForeground: "#FFFFFF",
     taxRateBps: 1025,
     platformFeeBps: 250,
+    defaultSlotMinutes: 10,
+    defaultOrdersPerSlot: 5,
+    orderingOpensHoursBefore: 48,
+    orderingClosesMinutesBefore: 20,
+    slotLeadMinutes: 15,
   };
   const truck = await prisma.truck.upsert({
     where: { slug: SLUG },

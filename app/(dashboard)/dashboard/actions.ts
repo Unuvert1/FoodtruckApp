@@ -20,11 +20,11 @@ import {
   setItemArchived,
   setItemAvailability,
   updateMenuItem,
-  updateNotificationEmail,
   userHasTruck,
 } from "@/lib/tenant";
 import { NEXT_STATUS } from "@/lib/orders/status";
 import { parseDollarsToCents } from "@/lib/money";
+import { slugSchema } from "@/lib/slug";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -133,31 +133,11 @@ export async function addSection(name: string): Promise<ActionResult> {
   return created ? { ok: true } : fail("Your truck doesn't have a menu yet.");
 }
 
-// ─── Settings ──────────────────────────────────────────────────────────────
-
-export async function saveNotificationEmail(email: string): Promise<ActionResult> {
-  const { truck } = await requireTruckAccess();
-  const trimmed = email.trim();
-  if (trimmed && !z.email().safeParse(trimmed).success) return fail("Enter a valid email address.");
-
-  await updateNotificationEmail(truck.id, trimmed || null);
-  revalidatePath("/dashboard", "layout");
-  return { ok: true };
-}
-
 // ─── Onboarding ────────────────────────────────────────────────────────────
-
-// Top-level paths a truck slug can't take, since /<slug> is the storefront.
-const RESERVED_SLUGS = new Set(["dashboard", "sign-in", "sign-up", "api", "order", "admin", "settings", "help", "about"]);
 
 const truckSchema = z.object({
   name: z.string().trim().min(1, "Enter your truck's name.").max(60),
-  slug: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .regex(/^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/, "Use 3–40 lowercase letters, numbers, and dashes.")
-    .refine((s) => !RESERVED_SLUGS.has(s), "That address is reserved. Try another."),
+  slug: slugSchema,
   timezone: z.string().refine((tz) => Intl.supportedValuesOf("timeZone").includes(tz), "Pick a timezone."),
 });
 

@@ -7,6 +7,7 @@ import { OrderStatus } from "@/components/storefront/order-status";
 export const dynamic = "force-dynamic";
 
 const POLL_SECONDS = 15;
+const POLL_SECONDS_UNCONFIRMED = 8;
 
 type Props = {
   params: Promise<{ truckSlug: string; orderId: string }>;
@@ -34,15 +35,17 @@ export default async function OrderPage({ params }: Props) {
 
   const done = found.order.status === "PICKED_UP" || found.order.status === "CANCELLED";
 
+  const pollSeconds = found.order.status === "PAID" ? POLL_SECONDS_UNCONFIRMED : POLL_SECONDS;
+
   return (
     <>
       <OrderStatus
         truck={truck}
         order={found.order}
         location={found.location}
-        refresh={done ? undefined : { renderedAt: new Date().toISOString(), seconds: POLL_SECONDS }}
+        refresh={done ? undefined : { renderedAt: new Date().toISOString(), seconds: pollSeconds }}
       />
-      {!done && <AutoRefresh seconds={POLL_SECONDS} />}
+      {!done && <AutoRefresh seconds={pollSeconds} />}
     </>
   );
 }

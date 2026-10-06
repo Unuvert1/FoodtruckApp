@@ -60,7 +60,7 @@ export function ServiceHero({ truck, service, location, firstSlot, now }: Props)
             <p>
               {location.addressLine}, {location.city}{" "}
               <a
-                href={mapsUrl(location.lat, location.lng)}
+                href={mapsUrl(location.lat, location.lng, `${location.addressLine}, ${location.city}`)}
                 target="_blank"
                 rel="noreferrer"
                 className="font-semibold underline underline-offset-4 focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-foreground"

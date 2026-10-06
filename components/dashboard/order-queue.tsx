@@ -2,21 +2,29 @@
 
 import { useOptimistic, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { ChevronRight } from "lucide-react";
 import type { OrderStatus, OrderView, Truck } from "@/lib/types";
-import { ACTIVE_STATUSES, ADVANCE_LABEL, NEXT_STATUS, STATUS_LABEL, isAdvanceable } from "@/lib/orders/status";
+import { ACTIVE_STATUSES, NEXT_STATUS, STATUS_LABEL, isAdvanceable } from "@/lib/orders/status";
 import { formatCents } from "@/lib/money";
-import { formatTime } from "@/lib/time";
-import { cn } from "@/lib/utils";
 import { advanceOrder, cancelOrderAction } from "@/app/(dashboard)/dashboard/actions";
-import { Badge } from "@/components/dashboard/badge";
 import { ErrorBanner } from "@/components/dashboard/error-banner";
+import { OrderTicket, type TicketTone } from "@/components/dashboard/order-ticket";
+import { TicketSheet } from "@/components/dashboard/ticket-sheet";
 
 type Change = { id: string; status: OrderStatus };
 
-export function OrderQueue({ truck, orders }: { truck: Truck; orders: OrderView[] }) {
+// Zones are defined by the action they need, not by pickup time.
+const ZONES: { tone: TicketTone; label: string; statuses: OrderStatus[] }[] = [
+  { tone: "new", label: "New", statuses: ["PAID"] },
+  { tone: "cooking", label: "Cooking", statuses: ["ACCEPTED", "PREPARING"] },
+  { tone: "ready", label: "Ready", statuses: ["READY"] },
+];
+
+export function OrderQueue({ truck, orders, arrived }: { truck: Truck; orders: OrderView[]; arrived: string[] }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   // Tickets move the instant they're tapped; the server confirms in the background.
   const [shown, applyChange] = useOptimistic(orders, (state, change: Change) =>
@@ -51,55 +59,53 @@ export function OrderQueue({ truck, orders }: { truck: Truck; orders: OrderView[
 
   const active = shown.filter((o) => ACTIVE_STATUSES.includes(o.status));
   const done = shown.filter((o) => !ACTIVE_STATUSES.includes(o.status));
-  const count = (status: OrderStatus) => active.filter((o) => o.status === status).length;
-  const inProgress = count("ACCEPTED") + count("PREPARING");
-
-  // Group active tickets by pickup time: that's the order the kitchen works in.
-  const groups = new Map<string, OrderView[]>();
-  for (const order of active) groups.set(order.pickupAt, [...(groups.get(order.pickupAt) ?? []), order]);
+  const byPickup = (a: OrderView, b: OrderView) => Date.parse(a.pickupAt) - Date.parse(b.pickupAt);
 
   return (
     <div>
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
-        <h1 className="text-[2rem] leading-none font-semibold tracking-[-0.03em]">Orders</h1>
-        <p className="flex flex-wrap gap-1.5 text-sm">
-          {count("PAID") > 0 && <Badge tone="signal">{count("PAID")} new</Badge>}
-          {inProgress > 0 && <Badge tone="muted">{inProgress} in progress</Badge>}
-          {count("READY") > 0 && <Badge tone="ready">{count("READY")} ready</Badge>}
-        </p>
-      </div>
-
-      <ErrorBanner message={error} className="mt-3" />
+      <ErrorBanner message={error} className="mx-4 mt-3" />
 
       {active.length === 0 ? (
-        <div className="mt-4 rounded-2xl border border-dashed border-border px-5 py-10 text-center">
-          <p className="font-semibold">No open orders</p>
-          <p className="mt-1 text-sm text-muted-foreground">New online orders appear here automatically.</p>
+        <div className="px-4 py-16 text-center">
+          <p className="text-base font-semibold">All caught up.</p>
+          <p className="mt-1 text-[0.8125rem] text-muted-foreground">New orders land here on their own.</p>
         </div>
       ) : (
-        [...groups.entries()].map(([pickupAt, tickets]) => (
-          <section key={pickupAt} className="mt-6">
-            <h2 className="mb-2 flex items-baseline gap-2">
-              <span className="text-[1.375rem] font-semibold tracking-[-0.02em] tabular-nums">{formatTime(pickupAt, truck.timezone)}</span>
-              <span className="text-sm text-muted-foreground">
-                pickup, {tickets.length} {tickets.length === 1 ? "order" : "orders"}
-              </span>
-            </h2>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(17rem,1fr))] gap-3">
-              {tickets.map((order) => (
-                <Ticket key={order.id} order={order} onAdvance={() => advance(order)} onCancel={() => cancel(order)} />
-              ))}
-            </div>
-          </section>
-        ))
+        ZONES.map((zone) => {
+          const tickets = active.filter((o) => zone.statuses.includes(o.status)).sort(byPickup);
+          if (tickets.length === 0) return null;
+          return (
+            <section key={zone.tone} className="mt-8 first:mt-6">
+              <h2 className="px-4 pb-2 text-[0.8125rem] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+                {zone.label} · {tickets.length}
+              </h2>
+              <ul className="divide-y divide-border overflow-hidden bg-surface md:rounded-2xl">
+                {tickets.map((order) => (
+                  <OrderTicket
+                    key={order.id}
+                    order={order}
+                    tone={zone.tone}
+                    timezone={truck.timezone}
+                    arriving={order.status === "PAID" && arrived.includes(order.id)}
+                    onAdvance={() => advance(order)}
+                    onOpenDetails={() => setDetailId(order.id)}
+                  />
+                ))}
+              </ul>
+            </section>
+          );
+        })
       )}
 
       {done.length > 0 && (
-        <details className="mt-8 rounded-2xl bg-surface">
-          <summary className="cursor-pointer px-4 py-3 font-semibold">Completed and cancelled ({done.length})</summary>
+        <details className="group mt-8 border-t border-border">
+          <summary className="flex min-h-12 cursor-pointer items-center justify-between px-4 text-[0.8125rem] text-muted-foreground">
+            <span>{done.length} done today</span>
+            <ChevronRight aria-hidden className="size-4 group-open:rotate-90" />
+          </summary>
           <ul className="divide-y divide-border border-t border-border">
             {done.map((o) => (
-              <li key={o.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+              <li key={o.id} className="flex items-center gap-3 px-4 py-3 text-[0.8125rem]">
                 <span className="w-10 text-base font-semibold tabular-nums">{o.orderNumber}</span>
                 <span className="flex-1 truncate">{o.customerName}</span>
                 <span className="text-muted-foreground">{STATUS_LABEL[o.status]}</span>
@@ -109,76 +115,12 @@ export function OrderQueue({ truck, orders }: { truck: Truck; orders: OrderView[
           </ul>
         </details>
       )}
+
+      <TicketSheet
+        order={shown.find((o) => o.id === detailId && ACTIVE_STATUSES.includes(o.status)) ?? null}
+        onClose={() => setDetailId(null)}
+        onCancel={cancel}
+      />
     </div>
-  );
-}
-
-function Ticket({ order, onAdvance, onCancel }: { order: OrderView; onAdvance: () => void; onCancel: () => void }) {
-  const [confirmingCancel, setConfirmingCancel] = useState(false);
-  const isNew = order.status === "PAID";
-  const isReady = order.status === "READY";
-
-  return (
-    <article
-      aria-label={`Order ${order.orderNumber} for ${order.customerName}`}
-      className={cn(
-        "flex flex-col rounded-2xl bg-surface ring-1 ring-border",
-        isNew && "ring-2 ring-signal",
-        isReady && "ring-2 ring-ready"
-      )}
-    >
-      {isNew && <div aria-hidden className="h-2 rounded-t-2xl bg-signal" />}
-      <div className="flex items-start gap-3 px-4 pt-3">
-        <p className="text-[2.25rem] leading-none font-semibold tracking-[-0.03em] tabular-nums">{order.orderNumber}</p>
-        <div className="min-w-0 flex-1 pt-0.5">
-          <p className="truncate font-semibold">{order.customerName}</p>
-          <p className="text-sm text-muted-foreground">{STATUS_LABEL[order.status]}</p>
-        </div>
-      </div>
-
-      <ul className="mt-3 flex-1 space-y-1.5 px-4">
-        {order.lines.map((line) => (
-          <li key={line.id} className="text-[0.9375rem] leading-snug">
-            <span className="font-semibold tabular-nums">{line.quantity}×</span> {line.name}
-            {line.modifiers.length > 0 && (
-              <span className="block pl-6 text-sm text-muted-foreground">{line.modifiers.join(", ")}</span>
-            )}
-          </li>
-        ))}
-      </ul>
-
-      <p className="mt-3 flex justify-between px-4 text-sm text-muted-foreground">
-        <a href={`tel:${order.customerPhone}`} className="underline-offset-4 hover:underline">
-          {order.customerPhone}
-        </a>
-        <span className="tabular-nums">{formatCents(order.totalCents)}</span>
-      </p>
-
-      <div className="p-3">
-        <button
-          type="button"
-          onClick={onAdvance}
-          className={cn(
-            "h-14 w-full rounded-xl text-base font-bold outline-none transition-colors focus-visible:ring-4 focus-visible:ring-foreground/30",
-            isNew && "bg-signal text-signal-foreground hover:bg-signal/85",
-            isReady && "bg-ready text-white hover:bg-ready/90",
-            !isNew && !isReady && "bg-foreground text-background hover:bg-foreground/90"
-          )}
-        >
-          {isAdvanceable(order.status) && ADVANCE_LABEL[order.status]}
-        </button>
-        <button
-          type="button"
-          onClick={() => (confirmingCancel ? onCancel() : setConfirmingCancel(true))}
-          onBlur={() => setConfirmingCancel(false)}
-          className={cn(
-            "mt-1 h-10 w-full rounded-lg text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-foreground/30",
-            confirmingCancel ? "bg-destructive/10 text-destructive" : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          {confirmingCancel ? "Tap again to cancel this order" : "Cancel order"}
-        </button>
-      </div>
-    </article>
   );
 }

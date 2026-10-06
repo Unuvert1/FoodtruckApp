@@ -52,3 +52,22 @@ export function orderTotals(subtotalCents: number, taxRateBps: number, tipCents:
     totalCents: subtotalCents + taxCents + tipCents,
   };
 }
+
+/**
+ * Parse a percentage a vendor types ("8.25", "8.25%", "7") into basis points
+ * (825, 825, 700) with string math, so there is no float rounding. At most two
+ * decimals, since a basis point is 0.01%. Returns null for anything else.
+ */
+export function parsePercentToBps(input: string): number | null {
+  const match = input.trim().replace(/%$/, "").trim().match(/^(\d{1,3})(?:\.(\d{0,2}))?$/);
+  if (!match) return null;
+  const [, whole, fraction = ""] = match;
+  return Number(whole) * 100 + Number(fraction.padEnd(2, "0"));
+}
+
+/** Basis points → the plain string a percent input shows, e.g. 825 → "8.25", 700 → "7". */
+export function bpsToPercentInput(bps: number): string {
+  const whole = Math.floor(bps / 100);
+  const fraction = String(bps % 100).padStart(2, "0").replace(/0+$/, "");
+  return fraction ? `${whole}.${fraction}` : String(whole);
+}

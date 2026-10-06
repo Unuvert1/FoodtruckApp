@@ -21,9 +21,10 @@ export type Location = {
   name: string;
   addressLine: string;
   city: string;
-  lat: number;
-  lng: number;
+  lat: number | null; // null when the vendor saved the spot without a map link
+  lng: number | null;
   notes: string | null;
+  archivedAt: string | null;
 };
 
 export type ServiceStatus = "DRAFT" | "PUBLISHED" | "LIVE" | "ENDED" | "CANCELLED";
@@ -133,4 +134,43 @@ export type ManagedSection = {
   id: string;
   name: string;
   items: ManagedItem[];
+};
+
+// ─── Dashboard settings ────────────────────────────────────────────────────
+// Kept apart from `Truck` on purpose: storefront components depend on that
+// shape, and these fields are for the vendor only.
+
+export type TruckSettings = {
+  name: string;
+  slug: string;
+  tagline: string;
+  logoUrl: string | null;
+  customDomain: string | null;
+  brandColor: string;
+  brandColorForeground: string;
+  heroImageUrl: string | null;
+  timezone: string;
+  taxRateBps: number;
+  platformFeeBps: number;
+  notificationEmail: string | null;
+  stripeAccountId: string | null;
+  stripeOnboarded: boolean;
+};
+
+export type OrderingDefaults = {
+  timezone: string;
+  defaultSlotMinutes: number;
+  defaultOrdersPerSlot: number;
+  orderingOpensHoursBefore: number;
+  orderingClosesMinutesBefore: number;
+  slotLeadMinutes: number;
+};
+
+export type PaymentStatus = { accountId: string | null; onboarded: boolean };
+
+export type TeamMember = {
+  id: string;
+  clerkUserId: string;
+  role: "OWNER" | "STAFF";
+  joinedAt: string;
 };
