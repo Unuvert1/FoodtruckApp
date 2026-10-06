@@ -14,12 +14,14 @@ Next.js 15 (App Router) · TypeScript · Tailwind v4 + shadcn/ui · Postgres (Su
 app/
   (platform)/                 home page, sign-in / sign-up
   (storefront)/[truckSlug]/   customer storefront, checkout, order status
-  (dashboard)/dashboard/      vendor: service screen (orders + stock), menu, settings
+  (dashboard)/dashboard/      vendor: service screen (orders + stock), menu, schedule, settings
 lib/
   tenant.ts                   tenant resolution, access guard, all tenant queries
   pricing.ts                  server-side price/total calculation
   orders/createOrder.ts       the single order-creation path
   orders/markOrderPaid.ts     PAID + vendor email (Stripe webhook will call it)
+  schedule/                   pickup-slot generation, ordering windows
+  geo/                        address autocomplete (keyless by default)
   db.ts                       Prisma client
   dev-auth.ts                 current user (Clerk, or a dev bypass)
 prisma/                       schema, migrations, seed (demo truck)
@@ -35,6 +37,7 @@ prisma/                       schema, migrations, seed (demo truck)
 ```
 Truck ─┬─ Membership (clerkUserId, role)
        ├─ Location
+       ├─ DishPhoto
        ├─ Menu → MenuSection → MenuItem → ModifierGroup → ModifierOption
        └─ Service (location, menu, times, slot size/capacity)
             ├─ PickupSlot (capacity, bookedCount)
