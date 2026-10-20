@@ -5,8 +5,9 @@ Link: https://jovanniandunoteam.atlassian.net/jira/software/projects/FPS/boards/
 
 **Sprint:** Sprint 3 (Sprint ID 4), Oct 8 – Oct 22, 2026 — **Active**
 
-**Sprint Goal:** Finish the vendor side — scheduling, settings, and POS — and get
-the app hosted.
+**Sprint Goal:** Build out the vendor side — scheduling, settings and POS — and
+improve the UI across the dashboard. A mix of finished and carried-over features;
+hosting on Vercel is still outstanding.
 
 **Report date:** Oct 20, 2026.
 
