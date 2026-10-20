@@ -40,6 +40,7 @@ enum OrderSource {
   WEB
   SMS
   API
+  COUNTER // rung up at the window on the POS; no pickup slot
 }
 
 model Truck {
@@ -57,7 +58,13 @@ model Truck {
   taxRateBps           Int     @default(0)
   platformFeeBps       Int     @default(250)
   customDomain         String? @unique
-  notificationEmail    String? // where new-order emails go
+  notificationEmail    String? // where vendor emails go
+  archivedAt           DateTime? // the truck is closed; nothing is ever hard-deleted
+
+  // Which vendor emails to send. The address above is where they all go.
+  notifyNewOrder     Boolean @default(true)
+  notifyCancellation Boolean @default(false)
+  notifyDailySummary Boolean @default(false)
 
   // Defaults a new Service starts from. Changing these never touches a
   // Service that already exists.
@@ -71,6 +78,7 @@ model Truck {
   updatedAt DateTime @updatedAt
 
   memberships Membership[]
+  invites     Invite[]
   locations   Location[]
   services    Service[]
   menus       Menu[]
@@ -84,6 +92,7 @@ model Membership {
   id          String         @id @default(cuid())
   truckId     String
   clerkUserId String
+  email       String? // captured when they join, so the team list shows a person not an id
   role        MembershipRole @default(OWNER)
   createdAt   DateTime       @default(now())
 
@@ -91,6 +100,25 @@ model Membership {
 
   @@unique([truckId, clerkUserId])
   @@index([clerkUserId])
+}
+
+/// A pending team invitation. Accepting one creates the Membership.
+model Invite {
+  id         String         @id @default(cuid())
+  truckId    String
+  email      String
+  role       MembershipRole @default(STAFF)
+  token      String         @unique // the secret in the accept link
+  invitedBy  String // clerkUserId of whoever sent it
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime       @default(now())
+
+  truck Truck @relation(fields: [truckId], references: [id], onDelete: Cascade)
+
+  @@index([truckId])
+  @@index([email])
 }
 
 model Location {
@@ -255,11 +283,11 @@ model ModifierOption {
 model Order {
   id                      String      @id @default(cuid())
   truckId                 String
-  serviceId               String
-  pickupSlotId            String
+  serviceId               String? // null for a counter sale: it belongs to no stop
+  pickupSlotId            String? // null for a counter sale: handed over immediately
   orderNumber             String // "A07": short, for calling out at the window
   customerName            String
-  customerPhone           String
+  customerPhone           String?
   customerEmail           String?
   subtotalCents           Int
   taxCents                Int
@@ -279,8 +307,10 @@ model Order {
   updatedAt               DateTime    @updatedAt
 
   truck      Truck           @relation(fields: [truckId], references: [id], onDelete: Cascade)
-  service    Service         @relation(fields: [serviceId], references: [id])
-  pickupSlot PickupSlot      @relation(fields: [pickupSlotId], references: [id])
+  // Restrict, not the default SetNull: a stop with orders must be CANCELLED,
+  // never deleted. Blanking serviceId would orphan the order and lose history.
+  service    Service?        @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  pickupSlot PickupSlot?     @relation(fields: [pickupSlotId], references: [id], onDelete: Restrict)
   lineItems  OrderLineItem[]
 
   @@unique([serviceId, orderNumber])
