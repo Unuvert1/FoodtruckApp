@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { saveTaxRate } from "@/app/(dashboard)/dashboard/(app)/settings/actions";
 import { FieldRow, inputClass } from "@/components/dashboard/settings/field-row";
 import { SaveRow, type SaveState } from "@/components/dashboard/settings/save-row";
+import { useUnsavedGuard } from "@/components/dashboard/settings/use-unsaved-guard";
 import { Section } from "@/components/dashboard/settings/section";
 import { Input } from "@/components/ui/input";
 import { bpsToPercentInput } from "@/lib/money";
@@ -11,6 +12,8 @@ import { bpsToPercentInput } from "@/lib/money";
 export function TaxesForm({ taxRateBps, platformFeeBps }: { taxRateBps: number; platformFeeBps: number }) {
   const initial = bpsToPercentInput(taxRateBps);
   const [percent, setPercent] = useState(initial);
+  const dirty = percent.trim() !== initial;
+  useUnsavedGuard(dirty);
   const [result, setResult] = useState<SaveState>(null);
   const [pending, startTransition] = useTransition();
 
@@ -43,7 +46,7 @@ export function TaxesForm({ taxRateBps, platformFeeBps }: { taxRateBps: number; 
         <FieldRow label="Platform fee" hint="Set by FoodtruckApp. You can't change it here.">
           <p className="pt-3 text-base tabular-nums">{bpsToPercentInput(platformFeeBps)}%</p>
         </FieldRow>
-        <SaveRow dirty={percent.trim() !== initial} pending={pending} result={result} successText="Saved. New orders use this rate." />
+        <SaveRow dirty={dirty} pending={pending} result={result} successText="Saved. New orders use this rate." />
       </Section>
     </form>
   );

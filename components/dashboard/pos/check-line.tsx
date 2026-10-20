@@ -21,28 +21,40 @@ const focus = "outline-none focus-visible:ring-4 focus-visible:ring-foreground/3
 
 export function CheckLine({ line, selected, flashN, onSelect, onQuantity, onRemove, onOptions }: Props) {
   const ref = useRef<HTMLLIElement>(null);
+  const qtyRef = useRef<HTMLSpanElement>(null);
   const lit = flashN !== null;
 
   useEffect(() => {
-    if (flashN !== null) ref.current?.scrollIntoView({ block: "nearest" });
+    if (flashN === null) return;
+    ref.current?.scrollIntoView({ block: "nearest" });
+    // The count jumps and settles, so the add registers even when the line was already on screen.
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    qtyRef.current?.animate(
+      [{ transform: "scale(1.5)" }, { transform: "scale(1)" }],
+      { duration: 220, easing: "cubic-bezier(0.2, 0.9, 0.3, 1.4)" }
+    );
   }, [flashN]);
 
   return (
-    <li ref={ref} className={cn("motion-safe:transition-colors motion-safe:duration-150", lit && "bg-muted")}>
+    <li ref={ref} className={cn("motion-safe:transition-colors motion-safe:duration-150", lit ? "bg-muted" : selected && "bg-muted/50")}>
       <button
         type="button"
         aria-expanded={selected}
         onClick={onSelect}
         className={cn("flex min-h-11 w-full items-start px-4 py-2 text-left focus-visible:ring-inset", focus)}
       >
-        <span className="w-9 shrink-0 text-[0.9375rem] leading-snug font-semibold tabular-nums">{line.quantity}</span>
+        <span className="w-9 shrink-0 text-[0.9375rem] leading-snug font-bold tabular-nums">
+          <span ref={qtyRef} className="inline-block origin-left">
+            {line.quantity}
+          </span>
+        </span>
         <span className="min-w-0 flex-1">
           <span className="block text-[0.9375rem] leading-snug">{line.name}</span>
           {line.modifiers.length > 0 && (
             <span className="block text-[0.8125rem] text-muted-foreground">{line.modifiers.join(", ")}</span>
           )}
         </span>
-        <span className="pl-3 text-[0.9375rem] leading-snug tabular-nums">{formatCents(line.lineTotalCents)}</span>
+        <span className="pl-3 text-[0.9375rem] leading-snug font-semibold tabular-nums">{formatCents(line.lineTotalCents)}</span>
       </button>
       {selected && (
         <div className="flex items-center gap-2 pr-4 pb-3 pl-[3.25rem]">

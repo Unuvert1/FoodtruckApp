@@ -16,6 +16,7 @@ export default async function ProfilePage() {
       slug={settings.slug}
       customDomain={settings.customDomain}
       appHost={appHost}
+      closed={settings.archivedAt !== null}
     />
   );
 }

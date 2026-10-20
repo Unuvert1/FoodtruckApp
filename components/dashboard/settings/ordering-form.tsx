@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { saveOrdering } from "@/app/(dashboard)/dashboard/(app)/settings/actions";
 import { FieldRow, inputClass } from "@/components/dashboard/settings/field-row";
 import { SaveRow, type SaveState } from "@/components/dashboard/settings/save-row";
+import { useUnsavedGuard } from "@/components/dashboard/settings/use-unsaved-guard";
 import { Section } from "@/components/dashboard/settings/section";
 import { Input } from "@/components/ui/input";
 import type { OrderingDefaults } from "@/lib/types";
@@ -29,6 +30,7 @@ export function OrderingForm({ defaults, timezones }: { defaults: OrderingDefaul
   const [pending, startTransition] = useTransition();
 
   const dirty = timezone !== defaults.timezone || NUMBER_FIELDS.some((f) => values[f.key].trim() !== String(defaults[f.key]));
+  useUnsavedGuard(dirty);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();

@@ -19,7 +19,7 @@ type Props = {
 
 /** One row in the queue. Presentational: callbacks only, no data or actions. */
 export function OrderTicket({ order, tone, timezone, arriving, onAdvance }: Props) {
-  const time = formatTime(order.pickupAt, timezone);
+  const time = order.pickupAt ? formatTime(order.pickupAt, timezone) : "Counter";
   const meta = tone === "new" ? `${time} pickup` : `${time} · ${STATUS_LABEL[order.status]}`;
   const summary = order.lines.map((l) => `${l.quantity}× ${l.name}`).join(" · ");
 

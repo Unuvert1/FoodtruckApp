@@ -14,7 +14,7 @@ const MINUTE = 60_000;
 /** One slot every `slotMinutes` from the start, up to (not including) the end. */
 export function generateSlots(startsAt: Date, endsAt: Date, slotMinutes: number, ordersPerSlot: number): SlotSpec[] {
   const slots: SlotSpec[] = [];
-  for (let t = startsAt.getTime(); t < endsAt.getTime() && slots.length <= MAX_SLOTS; t += slotMinutes * MINUTE) {
+  for (let t = startsAt.getTime(); t < endsAt.getTime() && slots.length < MAX_SLOTS; t += slotMinutes * MINUTE) {
     slots.push({ startsAt: new Date(t), capacity: ordersPerSlot });
   }
   return slots;

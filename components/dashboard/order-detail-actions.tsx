@@ -76,7 +76,9 @@ function AdvanceButton({ order }: { order: OrderView }) {
 
 function Contact({ order, truckName }: { order: OrderView; truckName: string }) {
   const first = order.customerName.trim().split(/\s+/)[0] || "customer";
-  const digits = order.customerPhone.replace(/[^\d+]/g, "");
+  // A counter sale has no phone, so there is nobody to call or text.
+  const phone = order.customerPhone;
+  const digits = phone?.replace(/[^\d+]/g, "") ?? "";
   const message = `Hi ${first}, this is ${truckName} about order ${order.orderNumber}.`;
   const button = cn(
     "flex h-12 flex-1 items-center justify-center rounded-xl border border-border px-2 font-semibold",
@@ -85,15 +87,19 @@ function Contact({ order, truckName }: { order: OrderView; truckName: string }) 
 
   return (
     <div className="px-4 pt-4">
-      <div className="flex gap-2">
-        <a href={`tel:${digits}`} className={button}>
-          Call {first}
-        </a>
-        <a href={`sms:${digits}?&body=${encodeURIComponent(message)}`} className={button}>
-          Text {first}
-        </a>
-      </div>
-      <p className="mt-3 text-[0.9375rem] text-muted-foreground tabular-nums select-text">{order.customerPhone}</p>
+      {phone && (
+        <>
+          <div className="flex gap-2">
+            <a href={`tel:${digits}`} className={button}>
+              Call {first}
+            </a>
+            <a href={`sms:${digits}?&body=${encodeURIComponent(message)}`} className={button}>
+              Text {first}
+            </a>
+          </div>
+          <p className="mt-3 text-[0.9375rem] text-muted-foreground tabular-nums select-text">{phone}</p>
+        </>
+      )}
       {order.customerEmail && (
         <>
           <a

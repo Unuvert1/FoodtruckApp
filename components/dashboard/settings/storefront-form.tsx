@@ -7,6 +7,7 @@ import { saveStorefront } from "@/app/(dashboard)/dashboard/(app)/settings/actio
 import { PhotoField } from "@/components/dashboard/photo-field";
 import { FieldRow, inputClass } from "@/components/dashboard/settings/field-row";
 import { SaveRow, type SaveState } from "@/components/dashboard/settings/save-row";
+import { useUnsavedGuard } from "@/components/dashboard/settings/use-unsaved-guard";
 import { Section } from "@/components/dashboard/settings/section";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -53,6 +54,7 @@ export function StorefrontForm(props: Props) {
     color.toUpperCase() !== props.brandColor.toUpperCase() ||
     foreground !== props.brandColorForeground.toUpperCase() ||
     heroUrl !== props.heroImageUrl;
+  useUnsavedGuard(dirty);
   const previewColor = validColor ? color : props.brandColor;
 
   function change<T>(set: (value: T) => void) {

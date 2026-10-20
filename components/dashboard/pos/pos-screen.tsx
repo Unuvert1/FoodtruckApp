@@ -102,7 +102,7 @@ export function PosScreen({ sections, taxRateBps }: Props) {
         onClick={() => setFlow({ step: "tender" })}
         className="flex h-16 w-full items-center justify-between rounded-xl bg-foreground px-5 text-[1.0625rem] font-bold text-background outline-none focus-visible:ring-4 focus-visible:ring-foreground/30"
       >
-        <span>Pay</span>
+        <span>Charge</span>
         <span className="tabular-nums">{formatCents(totalCents)}</span>
       </button>
     ) : (

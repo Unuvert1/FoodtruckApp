@@ -10,15 +10,25 @@ import { cn } from "@/lib/utils";
 // dish keeps the same one every service and becomes muscle memory.
 const TONES = ["bg-dish-1", "bg-dish-2", "bg-dish-3", "bg-dish-4", "bg-dish-5", "bg-dish-6"];
 
-type Props = { item: MenuItem; index: number; onSelect: (item: MenuItem) => void };
+export type TileSize = "sm" | "md" | "lg";
+
+// Type grows with the key, so a short menu's big keys read from arm's length.
+const NAME: Record<TileSize, string> = {
+  sm: "line-clamp-3 text-[0.9375rem]",
+  md: "line-clamp-3 text-[1.0625rem]",
+  lg: "line-clamp-4 text-[1.375rem]",
+};
+const PRICE: Record<TileSize, string> = { sm: "text-[0.875rem]", md: "text-[1rem]", lg: "text-[1.25rem]" };
+
+type Props = { item: MenuItem; index: number; size: TileSize; onSelect: (item: MenuItem) => void };
 
 /**
  * A key, not a card. The dark bottom edge is the whole trick: it reads as a
  * physical keycap, and pressing it shortens that edge and drops the face by the
  * same 2px, so the key travels without the grid reflowing (border-box plus a
- * fixed aspect ratio keeps the outer size constant).
+ * grid-assigned size keeps the outer size constant).
  */
-export function DishTile({ item, index, onSelect }: Props) {
+export function DishTile({ item, index, size, onSelect }: Props) {
   const soldOut = !item.isAvailable;
 
   return (
@@ -28,17 +38,18 @@ export function DishTile({ item, index, onSelect }: Props) {
       aria-disabled={soldOut}
       onClick={() => onSelect(item)}
       className={cn(
-        "relative flex aspect-5/4 flex-col justify-between rounded-lg px-2.5 py-2 text-left",
+        "relative flex min-h-0 flex-col justify-between rounded-lg px-3 py-2.5 text-left",
         "border-b-4 border-black/20 outline-none focus-visible:ring-4 focus-visible:ring-foreground/40",
-        "transition-[transform,border-width] duration-75 ease-out motion-reduce:transition-none",
+        "transition-[transform,border-width,filter] duration-75 ease-out motion-reduce:transition-none",
         soldOut
           ? "border-black/10 bg-muted"
-          : [TONES[index % TONES.length], "active:translate-y-0.5 active:border-b-2 hover:brightness-[1.03]"]
+          : [TONES[index % TONES.length], "hover:brightness-[1.03] active:translate-y-0.5 active:border-b-2 active:brightness-95"]
       )}
     >
       <span
         className={cn(
-          "line-clamp-3 text-[0.9375rem] leading-[1.15] font-bold",
+          "leading-[1.15] font-bold",
+          NAME[size],
           soldOut ? "text-muted-foreground line-through" : "text-foreground"
         )}
       >
@@ -47,13 +58,14 @@ export function DishTile({ item, index, onSelect }: Props) {
 
       <span className="flex items-end justify-between gap-1">
         {!soldOut && item.modifierGroups.length > 0 ? (
-          <ChevronDown aria-label="Has options" className="size-3.5 shrink-0 text-foreground/55" />
+          <ChevronDown aria-label="Has options" className="size-4 shrink-0 text-foreground/55" />
         ) : (
           <span />
         )}
         <span
           className={cn(
-            "text-[0.875rem] leading-none font-bold tabular-nums",
+            "leading-none font-bold tabular-nums",
+            PRICE[size],
             soldOut ? "text-muted-foreground" : "text-foreground/80"
           )}
         >

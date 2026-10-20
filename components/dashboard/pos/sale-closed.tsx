@@ -11,12 +11,20 @@ const TENDER_NAME: Record<Tender, string> = { CARD: "Card", CASH: "Cash", OTHER:
 
 export function SaleClosed({ tender, totalCents, changeCents, onNewSale }: Props) {
   const ref = useRef<HTMLButtonElement>(null);
-  useEffect(() => ref.current?.focus(), []);
+  const tickRef = useRef<SVGSVGElement>(null);
+  useEffect(() => {
+    ref.current?.focus();
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    tickRef.current?.animate(
+      [{ transform: "scale(0.4)", opacity: 0 }, { transform: "scale(1)", opacity: 1 }],
+      { duration: 260, easing: "cubic-bezier(0.2, 0.9, 0.3, 1.4)" }
+    );
+  }, []);
 
   return (
     <div className="flex h-full flex-col bg-surface px-4 py-6">
       <div role="status" className="flex flex-1 flex-col items-center justify-center gap-1 text-center">
-        <Check aria-hidden className="mb-2 size-14 text-ok" strokeWidth={2.5} />
+        <Check ref={tickRef} aria-hidden className="mb-2 size-14 text-ok" strokeWidth={2.5} />
         <p className="text-[1.0625rem] font-semibold">Sale closed</p>
         <p className="text-[2.5rem] leading-none font-semibold tracking-[-0.03em] tabular-nums">{formatCents(totalCents)}</p>
         <p className="mt-2 text-[0.9375rem] text-muted-foreground">

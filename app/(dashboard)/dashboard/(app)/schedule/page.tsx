@@ -1,17 +1,36 @@
-// Placeholder. The real screen (saved spots, address autocomplete, publishing a
-// stop, "repeat last week") is specced in scratchpad/spec-stops-maps.md.
+import { getLatestServiceDefaults, getScheduleServices, getVendorLocations, requireTruckAccess } from "@/lib/tenant";
+import { addDaysToDateKey, toZonedTimeInput, zonedDateKey } from "@/lib/time";
+import type { StopDraft } from "@/lib/types";
+import { ScheduleScreen } from "@/components/dashboard/schedule/schedule-screen";
+
+export const dynamic = "force-dynamic";
 export const metadata = { title: "Schedule" };
 
-export default function SchedulePage() {
+export default async function SchedulePage() {
+  const { truck } = await requireTruckAccess();
+  const now = new Date();
+  const [rows, spots, latest] = await Promise.all([
+    getScheduleServices(truck.id, now),
+    getVendorLocations(truck.id),
+    getLatestServiceDefaults(truck.id),
+  ]);
+
+  // A new stop starts from the last one: same spot, hours and slots, tomorrow.
+  const newDraft: StopDraft = {
+    locationId: latest?.locationId ?? null,
+    date: addDaysToDateKey(zonedDateKey(now, truck.timezone), 1),
+    startTime: latest ? toZonedTimeInput(latest.startsAt, truck.timezone) : "11:00",
+    endTime: latest ? toZonedTimeInput(latest.endsAt, truck.timezone) : "14:00",
+    opensHoursBefore: latest?.opensHoursBefore ?? 0,
+    closesMinutesBefore: latest?.closesMinutesBefore ?? 30,
+    slotMinutes: latest?.slotMinutes ?? 15,
+    ordersPerSlot: latest?.ordersPerSlot ?? 6,
+    publicNote: "",
+  };
+
   return (
     <main className="mx-auto max-w-3xl px-4 pt-6 pb-16">
-      <h1 className="text-[2rem] leading-none font-semibold tracking-[-0.03em]">Schedule</h1>
-      <p className="mt-2 text-[0.9375rem] text-muted-foreground">
-        Where the truck will be, and when customers can order ahead.
-      </p>
-      <p className="mt-8 rounded-2xl bg-surface px-4 py-6 text-center text-sm text-muted-foreground">
-        Being built now.
-      </p>
+      <ScheduleScreen rows={rows} spots={spots} timeZone={truck.timezone} newDraft={newDraft} nowIso={now.toISOString()} />
     </main>
   );
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolveOrderingWindow } from "@/lib/schedule/ordering-window";
-import { bookedSlotMessage, generateSlots, planSlots, slotSummary, type ExistingSlot } from "@/lib/schedule/slots";
+import { MAX_SLOTS, bookedSlotMessage, generateSlots, planSlots, slotSummary, type ExistingSlot } from "@/lib/schedule/slots";
 
 const at = (iso: string) => new Date(iso);
 const CHICAGO = "America/Chicago";
@@ -15,6 +15,18 @@ describe("generateSlots", () => {
       "2026-10-09T16:45:00.000Z",
     ]);
     expect(slots.every((s) => s.capacity === 6)).toBe(true);
+  });
+});
+
+describe("MAX_SLOTS", () => {
+  it("is 300, not 301", () => {
+    const slots = generateSlots(at("2026-10-09T00:00:00Z"), at("2026-10-12T00:00:00Z"), 5, 1);
+    expect(MAX_SLOTS).toBe(300);
+    expect(slots).toHaveLength(300);
+  });
+
+  it("a stop of exactly 300 slots is not truncated", () => {
+    expect(generateSlots(at("2026-10-09T00:00:00Z"), at("2026-10-10T01:00:00Z"), 5, 1)).toHaveLength(300);
   });
 });
 

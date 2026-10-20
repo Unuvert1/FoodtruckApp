@@ -12,7 +12,7 @@ Next.js 15 (App Router) · TypeScript · Tailwind v4 + shadcn/ui · Postgres (Su
 
 ```
 app/
-  (platform)/                 home page, sign-in / sign-up
+  (platform)/                 home page, sign-in / sign-up, invite accept
   (storefront)/[truckSlug]/   customer storefront, checkout, order status
   (dashboard)/dashboard/      vendor: service queue, order detail, POS, menu, schedule, settings
   api/                        uploads, dish photos, address lookup, new-order count
@@ -21,8 +21,9 @@ lib/
   pricing.ts                  server-side price/total calculation
   orders/createOrder.ts       the single order-creation path
   orders/markOrderPaid.ts     PAID + vendor email (Stripe webhook will call it)
-  schedule/                   pickup-slot generation, ordering windows
+  schedule/                   saving a stop, pickup-slot generation, ordering windows
   geo/                        address autocomplete (keyless by default)
+  invites.ts                  team invite tokens and their state
   db.ts                       Prisma client
   dev-auth.ts                 current user (Clerk, or a dev bypass)
 prisma/                       schema, migrations, seed (demo truck)
@@ -37,6 +38,7 @@ prisma/                       schema, migrations, seed (demo truck)
 
 ```
 Truck ─┬─ Membership (clerkUserId, role)
+       ├─ Invite (pending membership, token + expiry)
        ├─ Location
        ├─ DishPhoto
        ├─ Menu → MenuSection → MenuItem → ModifierGroup → ModifierOption
@@ -55,6 +57,8 @@ Order status: `PENDING_PAYMENT → PAID → PREPARING → READY → PICKED_UP` (
 - All orders go through `createOrder`; reserve slots with a conditional update, never read-then-write.
 - Store UTC, display in `Truck.timezone`.
 - Soft-delete menu items (`archivedAt`); order line items are snapshots, never re-joined to the live menu.
+- Settings and schedule writes are owner-only. A `Truck` with `archivedAt` stops serving: `getTruckFromRequest` returns null.
+- A counter sale is an `Order` with no service, pickup slot or phone, so those are nullable.
 - Stripe webhooks (when added) must be idempotent.
 - Don't edit this file unless the user explicitly asks.
 

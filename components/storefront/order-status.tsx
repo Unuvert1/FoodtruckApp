@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 import type { Location, OrderStatus as Status, OrderView, Truck } from "@/lib/types";
 import { formatCents } from "@/lib/money";
+import { directionsUrl } from "@/lib/service";
 import { formatDayLabel, formatTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { OrderActions } from "@/components/storefront/order-actions";
@@ -60,15 +61,28 @@ export function OrderStatus({ truck, order, location, refresh }: Props) {
           <section className="px-4 pt-8">
             <h2 className="font-display text-[1.5rem] leading-tight font-bold">Pickup</h2>
             <div className="mt-3 rounded-2xl bg-surface p-4">
-              <p className="font-display text-[1.75rem] leading-none font-bold tabular-nums">
-                {formatDayLabel(order.pickupAt, tz)}, {formatTime(order.pickupAt, tz)}
-              </p>
+              {/* Always set here: a counter sale has no customer status page. */}
+              {order.pickupAt && (
+                <p className="font-display text-[1.75rem] leading-none font-bold tabular-nums">
+                  {formatDayLabel(order.pickupAt, tz)}, {formatTime(order.pickupAt, tz)}
+                </p>
+              )}
               <p className="mt-2 font-semibold">{location.name}</p>
               <p className="text-sm text-muted-foreground">
-                {location.addressLine}, {location.city}
+                {location.addressLine}, {location.city}{" "}
+                {/* The one place directions matter most: they're walking to the truck now. */}
+                <a
+                  href={directionsUrl(location)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-foreground underline underline-offset-4 outline-none focus-visible:rounded-sm focus-visible:ring-3 focus-visible:ring-ring/50"
+                >
+                  Directions<span className="sr-only"> (opens in a new tab)</span>
+                </a>
               </p>
+              {location.notes && <p className="mt-1.5 text-sm text-muted-foreground">{location.notes}</p>}
             </div>
-            {!cancelled && (
+            {!cancelled && order.pickupAt && (
               <div className="mt-4">
                 <OrderActions
                   orderId={order.id}

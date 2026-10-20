@@ -69,6 +69,8 @@ export function ServiceHero({ truck, service, location, firstSlot, now }: Props)
               </a>
             </p>
             {location.notes && <p className="mt-1 opacity-80">{location.notes}</p>}
+            {/* The vendor's note for this stop specifically, under the standing one. */}
+            {service.publicNote && <p className="mt-1 opacity-80">{service.publicNote}</p>}
           </div>
         </div>
 
