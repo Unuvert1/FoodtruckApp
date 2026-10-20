@@ -3,10 +3,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { lineKey, type CartLine } from "@/lib/cart";
 
+/** The most recent add, so the page can confirm it. `id` changes on every add, even for the same item. */
+export type LastAdded = { id: number; menuItemId: string };
+
 type CartContextValue = {
   lines: CartLine[];
   count: number;
   ready: boolean; // false until the saved cart has been read from storage
+  lastAdded: LastAdded | null;
   add: (menuItemId: string, optionIds: string[], quantity: number) => void;
   setQuantity: (key: string, quantity: number) => void;
   clear: () => void;
@@ -18,6 +22,7 @@ const CartContext = createContext<CartContextValue | null>(null);
 export function CartProvider({ storageKey, children }: { storageKey: string; children: React.ReactNode }) {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [ready, setReady] = useState(false);
+  const [lastAdded, setLastAdded] = useState<LastAdded | null>(null);
 
   useEffect(() => {
     try {
@@ -47,6 +52,7 @@ export function CartProvider({ storageKey, children }: { storageKey: string; chi
       }
       return [...prev, { key, menuItemId, optionIds, quantity }];
     });
+    setLastAdded((prev) => ({ id: (prev?.id ?? 0) + 1, menuItemId }));
   }, []);
 
   const setQuantity = useCallback((key: string, quantity: number) => {
@@ -58,8 +64,8 @@ export function CartProvider({ storageKey, children }: { storageKey: string; chi
   const clear = useCallback(() => setLines([]), []);
 
   const value = useMemo(
-    () => ({ lines, count: lines.reduce((n, l) => n + l.quantity, 0), ready, add, setQuantity, clear }),
-    [lines, ready, add, setQuantity, clear]
+    () => ({ lines, count: lines.reduce((n, l) => n + l.quantity, 0), ready, lastAdded, add, setQuantity, clear }),
+    [lines, ready, lastAdded, add, setQuantity, clear]
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
