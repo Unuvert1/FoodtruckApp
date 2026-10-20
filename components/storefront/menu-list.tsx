@@ -49,19 +49,28 @@ export function MenuList({ menu, canOrder, closedReason }: Props) {
   const sectionKey = sections.map((s) => s.id).join(",");
   const currentId = sections.some((s) => s.id === activeId) ? activeId : (sections[0]?.id ?? null);
 
+  // A tapped chip stays highlighted until the customer scrolls on their own. Without this, the last
+  // sections (which can't scroll up to the top of the screen) would hand the highlight to the section above.
+  const pinnedRef = useRef<string | null>(null);
+  const userScrolledRef = useRef(false);
+
   useEffect(() => {
     if (!sectionKey || typeof IntersectionObserver === "undefined") return;
     const ids = sectionKey.split(",");
     const inBand = new Set<string>();
+    pinnedRef.current = null; // the list changed (search/filter), so start following the scroll again
+    // The topmost section in the band wins, so the chip changes as a heading reaches the bar.
+    const follow = () => {
+      const first = ids.find((id) => inBand.has(id));
+      if (first) setActiveId(first);
+    };
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
           if (entry.isIntersecting) inBand.add(entry.target.id);
           else inBand.delete(entry.target.id);
         }
-        // The topmost section in the band wins, so the chip changes as a heading reaches the bar.
-        const first = ids.find((id) => inBand.has(id));
-        if (first) setActiveId(first);
+        if (!pinnedRef.current) follow();
       },
       { rootMargin: SPY_ROOT_MARGIN }
     );
@@ -69,7 +78,26 @@ export function MenuList({ menu, canOrder, closedReason }: Props) {
       const el = document.getElementById(id);
       if (el) observer.observe(el);
     }
-    return () => observer.disconnect();
+
+    // The customer's own wheel, touch, key or scrollbar drag ends the pin; the next scroll hands control back.
+    const noteUserInput = (event: Event) => {
+      if (event.target instanceof Element && event.target.closest("[data-chip]")) return;
+      userScrolledRef.current = true;
+    };
+    const onScroll = () => {
+      if (pinnedRef.current && userScrolledRef.current) {
+        pinnedRef.current = null;
+        follow();
+      }
+    };
+    const inputEvents = ["wheel", "touchmove", "keydown", "pointerdown"] as const;
+    for (const name of inputEvents) window.addEventListener(name, noteUserInput, { passive: true });
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      observer.disconnect();
+      for (const name of inputEvents) window.removeEventListener(name, noteUserInput);
+      window.removeEventListener("scroll", onScroll);
+    };
   }, [sectionKey]);
 
   useEffect(() => {
@@ -152,7 +180,11 @@ export function MenuList({ menu, canOrder, closedReason }: Props) {
                     href={`#${section.id}`}
                     data-chip={section.id}
                     aria-current={current ? "location" : undefined}
-                    onClick={() => setActiveId(section.id)}
+                    onClick={() => {
+                      pinnedRef.current = section.id;
+                      userScrolledRef.current = false;
+                      setActiveId(section.id);
+                    }}
                     className={cn(
                       "inline-flex h-9 items-center rounded-full px-4 text-sm font-medium whitespace-nowrap ring-1 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand",
                       current
