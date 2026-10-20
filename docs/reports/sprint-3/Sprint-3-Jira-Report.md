@@ -3,7 +3,7 @@
 **Jira Project:** Foodtruck Project SWE1 (`FPS`)
 Link: https://jovanniandunoteam.atlassian.net/jira/software/projects/FPS/boards/3
 
-**Sprint:** Sprint 3 (Sprint ID 4), Oct 8 – Oct 22, 2026 — **Active**
+**Sprint:** Sprint 3 (Sprint ID 4), Oct 6 – Oct 20, 2026 — **Active**, closing today
 
 **Sprint Goal:** Build out the vendor side — scheduling, settings and POS — and
 improve the UI across the dashboard. A mix of finished and carried-over features;
@@ -11,11 +11,10 @@ hosting on Vercel is still outstanding.
 
 **Report date:** Oct 20, 2026.
 
-> **Note on the board:** Sprint 2 was closed on Oct 20 and Sprint 3 started the
-> same day. Its dates were set to Oct 8 – Oct 22, which overlaps Sprint 2's
-> Oct 1 – 15 window; the work in this report was done on Oct 19 and 20. There is
-> also a stray empty sprint still named "Sprint 2" on the board, holding no
-> issues — worth deleting or renaming before Sprint 3 is closed.
+> **Note on the board:** Sprint 2 was closed on Oct 20, and Sprint 3 runs the
+> two weeks to Oct 20 midnight. A stray empty sprint still named "Sprint 2"
+> remains on the board, holding no issues — worth deleting or renaming before
+> Sprint 3 is closed.
 
 ---
 
@@ -91,8 +90,8 @@ and it had no existing code to build on.
 - [x] Issues moved through workflow states (To Do → In Progress → Done)
 - [x] Issues closed only after acceptance criteria met
 - [x] Every completed issue has a comment recording what was built and what was not tested
-- [x] Sprint started in Jira *(started Oct 20, running to Oct 22)*
-- [ ] Sprint completed/closed in Jira
+- [x] Sprint started in Jira *(Oct 6 – Oct 20)*
+- [ ] Sprint completed/closed in Jira *(closes Oct 20 at midnight)*
 
 ---
 
