@@ -46,7 +46,9 @@ export function OrderQueue({ truck, orders, arrived }: { truck: Truck; orders: O
 
   const active = shown.filter((o) => ACTIVE_STATUSES.includes(o.status));
   const done = shown.filter((o) => !ACTIVE_STATUSES.includes(o.status));
-  const byPickup = (a: OrderView, b: OrderView) => Date.parse(a.pickupAt) - Date.parse(b.pickupAt);
+  // A counter sale has no pickup time; sort it to the end rather than NaN.
+  const pickupKey = (o: OrderView) => (o.pickupAt ? Date.parse(o.pickupAt) : Number.MAX_SAFE_INTEGER);
+  const byPickup = (a: OrderView, b: OrderView) => pickupKey(a) - pickupKey(b);
 
   return (
     <div>

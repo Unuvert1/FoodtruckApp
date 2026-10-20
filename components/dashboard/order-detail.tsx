@@ -54,7 +54,7 @@ export function OrderDetail({ order, timezone }: { order: OrderView; timezone: s
         </div>
         <p className="mt-2 text-base font-semibold break-words">{order.customerName}</p>
         <p className="mt-1 text-[0.8125rem] text-muted-foreground tabular-nums">
-          Pickup {formatTime(order.pickupAt, timezone)} · {itemCount} {itemCount === 1 ? "item" : "items"}
+          {order.pickupAt ? `Pickup ${formatTime(order.pickupAt, timezone)}` : "Counter sale"} · {itemCount} {itemCount === 1 ? "item" : "items"}
         </p>
       </header>
 

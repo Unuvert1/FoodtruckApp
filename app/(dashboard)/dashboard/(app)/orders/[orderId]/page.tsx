@@ -36,7 +36,7 @@ export default async function OrderPage({ params }: Props) {
         <OrderDetailActions
           order={order}
           truckName={truck.name}
-          pickupLabel={formatTime(order.pickupAt, truck.timezone)}
+          pickupLabel={order.pickupAt ? formatTime(order.pickupAt, truck.timezone) : "Counter sale"}
         />
       </main>
       <AutoRefresh seconds={10} />
