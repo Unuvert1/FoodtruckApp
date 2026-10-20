@@ -123,9 +123,10 @@ export type OrderView = {
   orderNumber: string;
   status: OrderStatus;
   customerName: string;
-  customerPhone: string;
+  // Both null for a counter sale: nobody to call, and no pickup time to wait for.
+  customerPhone: string | null;
   customerEmail: string | null;
-  pickupAt: string;
+  pickupAt: string | null;
   placedAt: string;
   acceptedAt: string | null;
   readyAt: string | null;
@@ -170,6 +171,10 @@ export type TruckSettings = {
   taxRateBps: number;
   platformFeeBps: number;
   notificationEmail: string | null;
+  notifyNewOrder: boolean;
+  notifyCancellation: boolean;
+  notifyDailySummary: boolean;
+  archivedAt: string | null; // set = the truck is closed: see getTruckFromRequest
   stripeAccountId: string | null;
   stripeOnboarded: boolean;
 };
@@ -188,8 +193,19 @@ export type PaymentStatus = { accountId: string | null; onboarded: boolean };
 export type TeamMember = {
   id: string;
   clerkUserId: string;
+  email: string | null; // captured when they join; older members have none
   role: "OWNER" | "STAFF";
   joinedAt: string;
+};
+
+/** A team invite still waiting on its person. */
+export type PendingInvite = {
+  id: string;
+  email: string;
+  role: "OWNER" | "STAFF";
+  expiresAt: string;
+  expired: boolean;
+  token: string; // owner-only page: lets the owner copy the link when email can't be sent
 };
 
 // ─── Dashboard schedule ────────────────────────────────────────────────────
