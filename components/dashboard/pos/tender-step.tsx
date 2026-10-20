@@ -8,7 +8,7 @@ export type Tender = "CARD" | "CASH" | "OTHER";
 type Props = { onBack: () => void; onCard: () => void; onCash: () => void; onOther: () => void };
 
 const row =
-  "flex h-16 w-full items-center px-5 text-left text-[1.0625rem] font-bold outline-none hover:bg-muted focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-foreground/30";
+  "flex h-16 w-full items-center rounded-xl border border-b-4 border-border bg-surface px-5 text-left text-[1.0625rem] font-bold outline-none transition-[transform,border-width] duration-75 hover:bg-muted focus-visible:ring-4 focus-visible:ring-foreground/30 active:translate-y-0.5 active:border-b-2 motion-reduce:transition-none";
 
 export function TenderStep({ onBack, onCard, onCash, onOther }: Props) {
   const cardRef = useRef<HTMLButtonElement>(null);
@@ -23,7 +23,7 @@ export function TenderStep({ onBack, onCard, onCash, onOther }: Props) {
       >
         <ChevronLeft className="size-4" /> Back to check
       </button>
-      <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
+      <div className="space-y-2">
         <button ref={cardRef} type="button" onClick={onCard} className={row}>
           Card
         </button>

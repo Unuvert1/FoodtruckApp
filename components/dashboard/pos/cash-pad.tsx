@@ -10,7 +10,8 @@ type Props = { totalCents: number; onBack: () => void; onComplete: (tenderedCent
 const MAX_CENTS = 9_999_999;
 const focus = "outline-none focus-visible:ring-4 focus-visible:ring-foreground/30";
 const keyClass = cn(
-  "flex h-14 items-center justify-center rounded-xl border border-border bg-surface text-[1.0625rem] font-semibold tabular-nums",
+  "flex h-14 items-center justify-center rounded-xl border border-b-4 border-border bg-surface text-[1.0625rem] font-semibold tabular-nums",
+  "transition-[transform,border-width] duration-75 active:translate-y-0.5 active:border-b-2 motion-reduce:transition-none",
   focus
 );
 
@@ -55,7 +56,7 @@ export function CashPad({ totalCents, onBack, onComplete }: Props) {
         {enough ? (
           <>
             <p className="text-[0.8125rem] text-muted-foreground">Change due</p>
-            <p className="text-[2.5rem] leading-none font-semibold tracking-[-0.03em] tabular-nums">{formatCents(change)}</p>
+            <p className="text-[2.5rem] leading-none font-semibold tracking-[-0.03em] text-ok tabular-nums">{formatCents(change)}</p>
           </>
         ) : (
           <p className="text-[1.0625rem] leading-[2.5rem] font-semibold text-muted-foreground tabular-nums">
