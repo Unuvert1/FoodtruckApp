@@ -2,11 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { Plus } from "lucide-react";
-import { saveLocation, setLocationArchived } from "@/app/(dashboard)/dashboard/(app)/settings/actions";
-import { inputClass } from "@/components/dashboard/settings/field-row";
+import { countSpotStops, saveLocation, setLocationArchived, type SaveLocationResult } from "@/app/(dashboard)/dashboard/(app)/settings/actions";
+import { PlaceCombobox, placeInput, type PlaceValue } from "@/components/dashboard/place-combobox";
+import { SaveRow } from "@/components/dashboard/settings/save-row";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import type { Location } from "@/lib/types";
 
@@ -15,18 +14,44 @@ type Editing = { location: Location | null } | null;
 export function LocationsManager({ locations }: { locations: Location[] }) {
   const [editing, setEditing] = useState<Editing>(null);
   const [error, setError] = useState<string | null>(null);
+  // The spot being archived, once we know it has stops still to come.
+  const [confirming, setConfirming] = useState<{ id: string; count: number } | null>(null);
   const [pending, startTransition] = useTransition();
 
   const active = locations.filter((l) => !l.archivedAt);
   const archived = locations.filter((l) => l.archivedAt);
 
-  function toggleArchived(location: Location) {
+  function setArchived(location: Location, archive: boolean) {
     setError(null);
+    setConfirming(null);
     startTransition(async () => {
-      const result = await setLocationArchived({ locationId: location.id, archived: !location.archivedAt });
+      const result = await setLocationArchived({ locationId: location.id, archived: archive });
       if (!result.ok) setError(result.error);
     });
   }
+
+  function toggleArchived(location: Location) {
+    if (confirming?.id === location.id) return setConfirming(null);
+    if (location.archivedAt) return setArchived(location, false);
+    setError(null);
+    startTransition(async () => {
+      const result = await countSpotStops(location.id);
+      if (!result.ok) return setError(result.error);
+      // Nothing upcoming: no need to ask.
+      if (result.count === 0) return setArchived(location, true);
+      setConfirming({ id: location.id, count: result.count });
+    });
+  }
+
+  const rowProps = (location: Location) => ({
+    location,
+    pending,
+    confirmCount: confirming?.id === location.id ? confirming.count : null,
+    onEdit: () => setEditing({ location }),
+    onToggle: () => toggleArchived(location),
+    onConfirm: () => setArchived(location, true),
+    onCancel: () => setConfirming(null),
+  });
 
   return (
     <section className="max-w-2xl rounded-2xl bg-surface">
@@ -44,7 +69,7 @@ export function LocationsManager({ locations }: { locations: Location[] }) {
       <div className="divide-y divide-border border-t border-border">
         {active.length === 0 && <p className="px-5 py-6 text-sm text-muted-foreground">No locations yet. Add the first spot you serve from.</p>}
         {active.map((location) => (
-          <LocationRow key={location.id} location={location} pending={pending} onEdit={() => setEditing({ location })} onToggle={() => toggleArchived(location)} />
+          <LocationRow key={location.id} {...rowProps(location)} />
         ))}
         {error && (
           <p role="alert" className="px-5 py-3 text-sm font-medium text-destructive">
@@ -58,7 +83,7 @@ export function LocationsManager({ locations }: { locations: Location[] }) {
           <p className="px-5 pt-4 pb-1 text-[0.6875rem] font-semibold tracking-[0.08em] text-muted-foreground uppercase">Archived</p>
           <div className="divide-y divide-border pb-2">
             {archived.map((location) => (
-              <LocationRow key={location.id} location={location} pending={pending} onEdit={() => setEditing({ location })} onToggle={() => toggleArchived(location)} />
+              <LocationRow key={location.id} {...rowProps(location)} />
             ))}
           </div>
         </div>
@@ -66,22 +91,36 @@ export function LocationsManager({ locations }: { locations: Location[] }) {
 
       <Sheet open={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>
         <SheetContent side="right" className="w-full gap-0 overflow-y-auto bg-surface p-0 shadow-none sm:max-w-md">
-          {editing && <LocationForm key={editing.location?.id ?? "new"} location={editing.location} onSaved={() => setEditing(null)} />}
+          {editing && <LocationForm key={editing.location?.id ?? "new"} location={editing.location} spots={active} onSaved={() => setEditing(null)} />}
         </SheetContent>
       </Sheet>
     </section>
   );
 }
 
-function LocationRow({ location, pending, onEdit, onToggle }: { location: Location; pending: boolean; onEdit: () => void; onToggle: () => void }) {
+function LocationRow({
+  location,
+  pending,
+  confirmCount,
+  onEdit,
+  onToggle,
+  onConfirm,
+  onCancel,
+}: {
+  location: Location;
+  pending: boolean;
+  confirmCount: number | null;
+  onEdit: () => void;
+  onToggle: () => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
   const isArchived = location.archivedAt !== null;
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-4">
       <div className={isArchived ? "min-w-0 flex-1 basis-48 opacity-60" : "min-w-0 flex-1 basis-48"}>
         <p className="truncate text-base font-medium">{location.name}</p>
-        <p className="truncate text-sm text-muted-foreground">
-          {location.addressLine}, {location.city}
-        </p>
+        <p className="truncate text-sm text-muted-foreground">{[location.addressLine, location.city].filter(Boolean).join(", ")}</p>
         {location.notes && <p className="truncate text-sm text-muted-foreground">{location.notes}</p>}
       </div>
       <div className="flex gap-2">
@@ -92,33 +131,99 @@ function LocationRow({ location, pending, onEdit, onToggle }: { location: Locati
           {isArchived ? "Restore" : "Archive"}
         </Button>
       </div>
+      {confirmCount !== null && (
+        <div role="alertdialog" aria-label="Confirm archive" className="basis-full border-t border-border pt-3">
+          <p className="text-sm">
+            {confirmCount === 1 ? "1 upcoming stop is" : `${confirmCount} upcoming stops are`} at this spot. They stay on your schedule, but you won&apos;t be able to pick this spot for new ones.
+          </p>
+          <div className="mt-2 flex gap-2">
+            <Button type="button" variant="destructive" disabled={pending} onClick={onConfirm} className="h-11 rounded-xl px-5 text-sm font-semibold">
+              {pending ? "Archiving…" : "Archive anyway"}
+            </Button>
+            <Button type="button" variant="ghost" onClick={onCancel} className="h-11 rounded-xl px-4 text-sm">
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function LocationForm({ location, onSaved }: { location: Location | null; onSaved: () => void }) {
-  const [name, setName] = useState(location?.name ?? "");
-  const [addressLine, setAddressLine] = useState(location?.addressLine ?? "");
-  const [city, setCity] = useState(location?.city ?? "");
-  const [mapsLink, setMapsLink] = useState("");
-  const [notes, setNotes] = useState(location?.notes ?? "");
-  const [error, setError] = useState<string | null>(null);
-  const [note, setNote] = useState<string | null>(null);
+/** What the combobox starts from when editing: the spot as stored, keeping its provider and pin. */
+function initialPlace(location: Location | null): PlaceValue | null {
+  if (!location) return null;
+  const { provider } = location;
+  if (provider === "geoapify" || provider === "photon") {
+    const address = [location.addressLine, location.city].filter(Boolean).join(", ");
+    return {
+      kind: "found",
+      provider,
+      name: location.name,
+      notes: location.notes ?? "",
+      suggestion: {
+        providerPlaceId: location.providerPlaceId,
+        primary: location.addressLine,
+        secondary: address,
+        suggestedName: location.name,
+        addressLine: location.addressLine,
+        city: location.city,
+        region: location.region,
+        postcode: location.postcode,
+        lat: location.lat,
+        lng: location.lng,
+      },
+    };
+  }
+  return { kind: "manual", name: location.name, addressLine: location.addressLine, city: location.city, region: location.region, postcode: location.postcode, notes: location.notes ?? "" };
+}
+
+function LocationForm({ location, spots, onSaved }: { location: Location | null; spots: Location[]; onSaved: () => void }) {
+  const [place, setPlace] = useState<PlaceValue | null>(() => initialPlace(location));
+  const [dirty, setDirty] = useState(false);
+  const [result, setResult] = useState<SaveLocationResult | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const hasCoords = location?.lat != null && location?.lng != null;
+  // While editing, the search shouldn't offer other spots: picking one would mean replacing this one.
+  const offered = location ? [] : spots;
+
+  function change(next: PlaceValue | null) {
+    setPlace(next);
+    setDirty(true);
+    setResult(null);
+  }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
+    setResult(null);
+    if (!place) return setResult({ ok: false, error: "Choose where this spot is." });
+    // They picked a spot they already have: nothing to save.
+    if (place.kind === "saved") return onSaved();
+
+    const input = placeInput(place).place!;
+    // A typed address keeps the stored pin and provider only while the address itself is unchanged.
+    const same =
+      location &&
+      place.kind === "manual" &&
+      location.addressLine === input.addressLine.trim() &&
+      location.city === input.city.trim() &&
+      location.region === input.region.trim() &&
+      location.postcode === input.postcode.trim();
+    const kept = same ? { provider: location.provider as "geoapify" | "photon" | "manual", providerPlaceId: location.providerPlaceId, lat: location.lat, lng: location.lng } : {};
+
     startTransition(async () => {
-      const result = await saveLocation({ locationId: location?.id, name, addressLine, city, mapsLink, notes });
-      if (!result.ok) return setError(result.error);
-      // Saved either way. If the link couldn't be read, say so before closing is too late, so keep the sheet open.
-      if (result.note) return setNote(result.note);
-      onSaved();
+      const saved = await saveLocation({ locationId: location?.id, ...input, ...kept });
+      setResult(saved);
+      if (saved.ok) {
+        setDirty(false);
+        // Saved with a note: keep the sheet open so it can be read.
+        if (!saved.note) onSaved();
+      }
     });
   }
+
+  const done = result?.ok === true && Boolean(result.note);
+  const reused = place?.kind === "saved" && place.reused === true;
 
   return (
     <form onSubmit={submit} noValidate className="flex min-h-full flex-col">
@@ -127,64 +232,22 @@ function LocationForm({ location, onSaved }: { location: Location | null; onSave
         <SheetDescription className="mt-2">Customers see this spot on your ordering page.</SheetDescription>
       </div>
 
-      <div className="mt-5 space-y-5 px-5">
-        <div>
-          <Label htmlFor="loc-name" className="mb-2 font-semibold">Name</Label>
-          <Input id="loc-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder="Riverside Park" className={inputClass} />
-        </div>
-        <div>
-          <Label htmlFor="loc-address" className="mb-2 font-semibold">Street address</Label>
-          <Input id="loc-address" value={addressLine} onChange={(e) => setAddressLine(e.target.value)} maxLength={120} autoComplete="street-address" className={inputClass} />
-        </div>
-        <div>
-          <Label htmlFor="loc-city" className="mb-2 font-semibold">City</Label>
-          <Input id="loc-city" value={city} onChange={(e) => setCity(e.target.value)} maxLength={60} autoComplete="address-level2" className={inputClass} />
-        </div>
-        <div>
-          <Label htmlFor="loc-link" className="mb-2 font-semibold">Google Maps link</Label>
-          <Input
-            id="loc-link"
-            value={mapsLink}
-            onChange={(e) => setMapsLink(e.target.value)}
-            maxLength={500}
-            inputMode="url"
-            autoCapitalize="none"
-            spellCheck={false}
-            placeholder="Paste a link to the spot"
-            className={inputClass}
-          />
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            Optional. In Google Maps, press and hold the spot, then share and copy the link. It lets customers get directions.
-            {hasCoords && !mapsLink && " This spot already has a map pin; paste a new link to move it."}
-            {!hasCoords && location && !mapsLink && " This spot has no map pin yet."}
-          </p>
-        </div>
-        <div>
-          <Label htmlFor="loc-notes" className="mb-2 font-semibold">Notes</Label>
-          <Input id="loc-notes" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={200} placeholder="Find us by the fountain" className={inputClass} />
-        </div>
+      <div className="mt-5 px-5">
+        <PlaceCombobox value={place} onChange={change} spots={offered} label="Where is this spot?" />
+        {place?.kind === "found" && place.suggestion.lat == null && (
+          <p className="mt-3 text-sm text-muted-foreground">This address has no map pin. Directions will use the street address.</p>
+        )}
       </div>
 
-      <div className="mt-auto space-y-3 px-5 pt-6 pb-6">
-        {error && (
-          <p role="alert" className="text-sm font-medium text-destructive">
-            {error}
-          </p>
+      <div className="mt-auto pt-6">
+        {done && (
+          <div className="px-5">
+            <Button type="button" variant="secondary" onClick={onSaved} className="h-12 w-full rounded-xl text-base font-semibold">
+              Done
+            </Button>
+          </div>
         )}
-        {note && (
-          <p role="status" className="text-sm text-ok">
-            {note}
-          </p>
-        )}
-        {note ? (
-          <Button type="button" onClick={onSaved} className="h-12 w-full rounded-xl text-base font-semibold">
-            Done
-          </Button>
-        ) : (
-          <Button type="submit" disabled={pending} className="h-12 w-full rounded-xl text-base font-semibold">
-            {pending ? "Saving…" : "Save location"}
-          </Button>
-        )}
+        <SaveRow dirty={dirty && place !== null && !reused} pending={pending} result={result} label="Save location" />
       </div>
     </form>
   );

@@ -1,6 +1,6 @@
 import { Section } from "@/components/dashboard/settings/section";
 import { TeamList } from "@/components/dashboard/settings/team-list";
-import { getTeam, requireTruckAccess } from "@/lib/tenant";
+import { getPendingInvites, getTeam, requireTruckAccess } from "@/lib/tenant";
 
 export const metadata = { title: "Team · Settings" };
 
@@ -15,6 +15,7 @@ export default async function TeamPage() {
     );
   }
 
-  const members = await getTeam(truck.id);
-  return <TeamList members={members} currentUserId={userId} timezone={truck.timezone} />;
+  const [members, invites] = await Promise.all([getTeam(truck.id), getPendingInvites(truck.id, new Date())]);
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  return <TeamList members={members} invites={invites} currentUserId={userId} timezone={truck.timezone} appUrl={appUrl} />;
 }

@@ -2,9 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { saveProfile, saveSlug } from "@/app/(dashboard)/dashboard/(app)/settings/actions";
+import { DangerZone } from "@/components/dashboard/settings/danger-zone";
 import { PhotoField } from "@/components/dashboard/photo-field";
 import { FieldRow, inputClass } from "@/components/dashboard/settings/field-row";
 import { SaveRow, type SaveState } from "@/components/dashboard/settings/save-row";
+import { useUnsavedGuard } from "@/components/dashboard/settings/use-unsaved-guard";
 import { Section } from "@/components/dashboard/settings/section";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,9 +18,10 @@ type Props = {
   slug: string;
   customDomain: string | null;
   appHost: string;
+  closed: boolean;
 };
 
-export function ProfileForm({ name: initialName, tagline: initialTagline, logoUrl: initialLogo, slug, customDomain, appHost }: Props) {
+export function ProfileForm({ name: initialName, tagline: initialTagline, logoUrl: initialLogo, slug, customDomain, appHost, closed }: Props) {
   const [name, setName] = useState(initialName);
   const [tagline, setTagline] = useState(initialTagline);
   const [logoUrl, setLogoUrl] = useState<string | null>(initialLogo);
@@ -26,6 +29,7 @@ export function ProfileForm({ name: initialName, tagline: initialTagline, logoUr
   const [pending, startTransition] = useTransition();
 
   const dirty = name !== initialName || tagline !== initialTagline || logoUrl !== initialLogo;
+  useUnsavedGuard(dirty);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -77,6 +81,7 @@ export function ProfileForm({ name: initialName, tagline: initialTagline, logoUr
       </form>
 
       <AddressSection slug={slug} appHost={appHost} customDomain={customDomain} />
+      <DangerZone truckName={initialName} closed={closed} />
     </div>
   );
 }
@@ -89,6 +94,7 @@ function AddressSection({ slug, appHost, customDomain }: { slug: string; appHost
 
   const next = value.trim().toLowerCase();
   const changed = next !== slug;
+  useUnsavedGuard(changed);
 
   function confirm() {
     startTransition(async () => {

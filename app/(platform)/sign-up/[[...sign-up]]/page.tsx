@@ -6,7 +6,7 @@ export const metadata = { title: "Get started with FoodtruckApp" };
 export default function SignUpPage() {
   return (
     <AuthShell>
-      <SignUp forceRedirectUrl="/dashboard" signInUrl="/sign-in" />
+      <SignUp fallbackRedirectUrl="/dashboard" signInUrl="/sign-in" />
     </AuthShell>
   );
 }
