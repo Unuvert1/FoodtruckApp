@@ -3,17 +3,18 @@
 **Jira Project:** Foodtruck Project SWE1 (`FPS`)
 Link: https://jovanniandunoteam.atlassian.net/jira/software/projects/FPS/boards/3
 
-**Sprint:** Sprint 3 (Sprint ID 4)
+**Sprint:** Sprint 3 (Sprint ID 4), Oct 8 – Oct 22, 2026 — **Active**
 
 **Sprint Goal:** Finish the vendor side — scheduling, settings, and POS — and get
 the app hosted.
 
 **Report date:** Oct 20, 2026.
 
-> **Note on the sprint itself:** Sprint 3 exists on the board but has never been
-> *started* in Jira, so it has no start or end date and still shows as "future".
-> Sprint 2 was closed on Oct 20. There is also a stray empty sprint also named
-> "Sprint 2" left on the board. Both are worth tidying before the sprint is closed.
+> **Note on the board:** Sprint 2 was closed on Oct 20 and Sprint 3 started the
+> same day. Its dates were set to Oct 8 – Oct 22, which overlaps Sprint 2's
+> Oct 1 – 15 window; the work in this report was done on Oct 19 and 20. There is
+> also a stray empty sprint still named "Sprint 2" on the board, holding no
+> issues — worth deleting or renaming before Sprint 3 is closed.
 
 ---
 
@@ -89,7 +90,7 @@ and it had no existing code to build on.
 - [x] Issues moved through workflow states (To Do → In Progress → Done)
 - [x] Issues closed only after acceptance criteria met
 - [x] Every completed issue has a comment recording what was built and what was not tested
-- [ ] Sprint started in Jira *(Sprint 3 was never formally started)*
+- [x] Sprint started in Jira *(started Oct 20, running to Oct 22)*
 - [ ] Sprint completed/closed in Jira
 
 ---
@@ -129,4 +130,4 @@ and it had no existing code to build on.
 
 - **Backlog:** https://jovanniandunoteam.atlassian.net/jira/software/projects/FPS/boards/3/backlog
 - **Board, filtered to Sprint 3:** https://jovanniandunoteam.atlassian.net/issues/?jql=project%3DFPS%20AND%20sprint%3D4%20ORDER%20BY%20key%20ASC
-- **Sprint report:** https://jovanniandunoteam.atlassian.net/jira/software/projects/FPS/boards/3/reports/sprint-retrospective?sprint=4 *(available once the sprint is started and closed)*
+- **Sprint report:** https://jovanniandunoteam.atlassian.net/jira/software/projects/FPS/boards/3/reports/sprint-retrospective?sprint=4 *(available once the sprint is closed)*
