@@ -1,6 +1,6 @@
 "use client";
 
-import { cloneElement, useState, useTransition } from "react";
+import { cloneElement, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, Minus, Plus, Trash2 } from "lucide-react";
@@ -8,7 +8,9 @@ import { Radio } from "@base-ui/react/radio";
 import { RadioGroup } from "@base-ui/react/radio-group";
 import type { Location, Menu, PickupSlot, Service, Truck } from "@/lib/types";
 import { resolveLine, type ResolvedLine } from "@/lib/cart";
+import { resolveSlotChoice } from "@/lib/checkout-slot";
 import { applyBps, formatCents, orderTotals } from "@/lib/money";
+import { browserStorage, clearSavedCustomer, readSavedCustomer, writeSavedCustomer } from "@/lib/saved-customer";
 import { formatDayLabel, formatTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { placeOrder } from "@/app/(storefront)/[truckSlug]/checkout/actions";
@@ -34,10 +36,15 @@ export function CheckoutForm({ truck, service, location, menu, slots }: Props) {
   const { lines, ready, setQuantity, clear } = useCart();
   const tz = truck.timezone;
 
-  const [slotId, setSlotId] = useState<string | null>(null);
+  // The earliest pickup time starts selected. If the chosen time fills up while
+  // the customer is checking out, resolveSlotChoice moves them to the next one.
+  const [chosenSlot, setChosenSlot] = useState<PickupSlot | null>(slots[0] ?? null);
+  const { slot: selectedSlot, replaced: lostSlot } = resolveSlotChoice(slots, chosenSlot);
+  const slotId = selectedSlot?.id ?? null;
   const [tipBps, setTipBps] = useState(1500);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [hasSavedDetails, setHasSavedDetails] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [placed, setPlaced] = useState(false); // avoids flashing "empty" between clear() and navigation
   const [serverError, setServerError] = useState<string | null>(null);
@@ -47,6 +54,23 @@ export function CheckoutForm({ truck, service, location, menu, slots }: Props) {
   const subtotal = resolved.reduce((sum, l) => sum + l.lineTotalCents, 0);
   const totals = orderTotals(subtotal, truck.taxRateBps, applyBps(subtotal, tipBps));
   const menuHref = `/${truck.slug}?service=${service.id}`;
+
+  // Fill in the details from last time. Read after mount so the server and
+  // browser render the same thing first, and never overwrite what's been typed.
+  useEffect(() => {
+    const saved = readSavedCustomer(browserStorage());
+    if (!saved) return;
+    setName((current) => current || saved.name);
+    setPhone((current) => current || saved.phone);
+    setHasSavedDetails(true);
+  }, []);
+
+  function forgetSavedDetails() {
+    clearSavedCustomer(browserStorage());
+    setName("");
+    setPhone("");
+    setHasSavedDetails(false);
+  }
 
   function handlePlaceOrder(e: React.FormEvent) {
     e.preventDefault();
@@ -85,6 +109,7 @@ export function CheckoutForm({ truck, service, location, menu, slots }: Props) {
         router.refresh(); // pick up slots that filled or items that sold out meanwhile
         return;
       }
+      writeSavedCustomer(browserStorage(), { name, phone });
       setPlaced(true);
       clear();
       router.push(`/${truck.slug}/order/${result.orderId}`);
@@ -160,25 +185,36 @@ export function CheckoutForm({ truck, service, location, menu, slots }: Props) {
                     Every pickup time for this stop is full. You can still order at the window.
                   </p>
                 ) : (
-                  <RadioGroup
-                    aria-label="Pickup time"
-                    value={slotId}
-                    onValueChange={(v) => {
-                      setSlotId(v as string);
-                      setErrors((e) => ({ ...e, slot: undefined }));
-                    }}
-                    className="grid grid-cols-3 gap-2"
-                  >
-                    {slots.map((slot) => {
-                      const left = slot.capacity - slot.bookedCount;
-                      return (
-                        <Tile key={slot.id} value={slot.id}>
-                          <span className="font-semibold tabular-nums">{formatTime(slot.startsAt, tz)}</span>
-                          {left <= 2 && <span className="text-xs opacity-75">{left} left</span>}
-                        </Tile>
-                      );
-                    })}
-                  </RadioGroup>
+                  <>
+                    {lostSlot && selectedSlot && (
+                      <p role="status" className="mb-3 text-sm font-medium">
+                        {formatTime(lostSlot.startsAt, tz)} just filled up. We picked {formatTime(selectedSlot.startsAt, tz)} instead.
+                        Choose another time if you like.
+                      </p>
+                    )}
+                    <RadioGroup
+                      aria-label="Pickup time"
+                      value={slotId}
+                      onValueChange={(v) => {
+                        setChosenSlot(slots.find((s) => s.id === v) ?? null);
+                        setErrors((e) => ({ ...e, slot: undefined }));
+                      }}
+                      className="grid grid-cols-3 gap-2"
+                    >
+                      {slots.map((slot, index) => {
+                        const left = slot.capacity - slot.bookedCount;
+                        const note = [index === 0 ? "Earliest" : null, left <= 2 ? `${left} left` : null]
+                          .filter(Boolean)
+                          .join(" · ");
+                        return (
+                          <Tile key={slot.id} value={slot.id}>
+                            <span className="font-semibold tabular-nums">{formatTime(slot.startsAt, tz)}</span>
+                            {note && <span className="text-center text-xs opacity-75">{note}</span>}
+                          </Tile>
+                        );
+                      })}
+                    </RadioGroup>
+                  </>
                 )}
               </Section>
 
@@ -223,6 +259,20 @@ export function CheckoutForm({ truck, service, location, menu, slots }: Props) {
                       className="h-12 rounded-xl bg-surface px-3.5 text-base"
                     />
                   </Field>
+                  {hasSavedDetails ? (
+                    <p className="text-sm text-muted-foreground">
+                      Filled in from your last order, saved on this device.{" "}
+                      <button
+                        type="button"
+                        onClick={forgetSavedDetails}
+                        className="font-semibold text-brand underline underline-offset-4 outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+                      >
+                        Clear
+                      </button>
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">We&apos;ll remember these on this device for next time.</p>
+                  )}
                 </div>
               </Section>
 

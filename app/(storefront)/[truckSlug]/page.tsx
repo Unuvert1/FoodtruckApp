@@ -3,6 +3,7 @@ import { getBookableSlots, getStorefrontMenu, getTruckFromRequest, getUpcomingSe
 import { cartStorageKey } from "@/lib/cart";
 import { orderingWindow, pickDefaultService } from "@/lib/service";
 import { formatWhen } from "@/lib/time";
+import { AddedNotice } from "@/components/storefront/added-notice";
 import { CartProvider } from "@/components/storefront/cart-provider";
 import { MenuList } from "@/components/storefront/menu-list";
 import { OrderBar } from "@/components/storefront/order-bar";
@@ -74,6 +75,7 @@ export default async function StorefrontPage({ params, searchParams }: Props) {
         <MenuList menu={menu} canOrder={ordering === "open"} closedReason={closedReason} />
         <StorefrontFooter truck={truck} />
       </main>
+      <AddedNotice menu={menu} />
       <OrderBar menu={menu} checkoutHref={`/${truck.slug}/checkout?service=${selected.id}`} />
     </CartProvider>
   );
