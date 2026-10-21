@@ -9,6 +9,9 @@ export type CartLine = {
   menuItemId: string;
   optionIds: string[];
   quantity: number;
+  // The item's name when it was added, so checkout can say what was removed if the item leaves the menu.
+  // Optional: carts saved before this was added don't have it.
+  name?: string;
 };
 
 export function cartStorageKey(truckSlug: string, serviceId: string): string {
