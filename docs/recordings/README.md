@@ -6,6 +6,7 @@ what a sprint actually produced without cloning and running anything.
 | Sprint | File | Recorded by |
 |---|---|---|
 | Sprint 3 | [Sprint3-Unubileg-Recording.mp4](Sprint3-Unubileg-Recording.mp4) | Unubileg |
+| Sprint 3 | [Sprint3-Jovanni-Recording.mp4](Sprint3-Jovanni-Recording.mp4) | Jovanni |
 
 ## Sprint 3
 
@@ -17,6 +18,13 @@ no way to add a stop at all, and every stop in the app came from a seed script.
 
 Two things the recording does not show, because they are not built: POS completes
 a sale on screen but saves nothing, and the app is not yet deployed.
+
+## Sprint 3 (customer side)
+
+A walkthrough of the customer side: browsing the storefront, one-tap add and the
+item sheet for items with options, checkout with the earliest pickup time already
+selected, and the order status page as the order moves from sent to picked up.
+About 1 minute 24 seconds.
 
 ## Adding one
 
