@@ -11,7 +11,7 @@ type CartContextValue = {
   count: number;
   ready: boolean; // false until the saved cart has been read from storage
   lastAdded: LastAdded | null;
-  add: (menuItemId: string, optionIds: string[], quantity: number) => void;
+  add: (menuItemId: string, optionIds: string[], quantity: number, name?: string) => void;
   setQuantity: (key: string, quantity: number) => void;
   clear: () => void;
 };
@@ -43,14 +43,14 @@ export function CartProvider({ storageKey, children }: { storageKey: string; chi
     }
   }, [lines, ready, storageKey]);
 
-  const add = useCallback((menuItemId: string, optionIds: string[], quantity: number) => {
+  const add = useCallback((menuItemId: string, optionIds: string[], quantity: number, name?: string) => {
     const key = lineKey(menuItemId, optionIds);
     setLines((prev) => {
       const existing = prev.find((l) => l.key === key);
       if (existing) {
         return prev.map((l) => (l.key === key ? { ...l, quantity: l.quantity + quantity } : l));
       }
-      return [...prev, { key, menuItemId, optionIds, quantity }];
+      return [...prev, { key, menuItemId, optionIds, quantity, ...(name ? { name } : {}) }];
     });
     setLastAdded((prev) => ({ id: (prev?.id ?? 0) + 1, menuItemId }));
   }, []);

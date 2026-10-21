@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getOrderForCustomer, getTruckFromRequest } from "@/lib/tenant";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { OrderStatus } from "@/components/storefront/order-status";
+import { RememberOrder } from "@/components/storefront/remember-order";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,13 @@ export default async function OrderPage({ params }: Props) {
 
   return (
     <>
+      <RememberOrder
+        truckSlug={truck.slug}
+        orderId={found.order.id}
+        orderNumber={found.order.orderNumber}
+        status={found.order.status}
+        placedAt={found.order.placedAt}
+      />
       <OrderStatus
         truck={truck}
         order={found.order}

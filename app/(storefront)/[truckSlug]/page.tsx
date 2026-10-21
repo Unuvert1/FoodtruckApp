@@ -8,6 +8,7 @@ import { CartProvider } from "@/components/storefront/cart-provider";
 import { MenuList } from "@/components/storefront/menu-list";
 import { OrderBar } from "@/components/storefront/order-bar";
 import { ServiceHero } from "@/components/storefront/service-hero";
+import { YourOrderCard } from "@/components/storefront/your-order-card";
 import { StorefrontFooter } from "@/components/storefront/storefront-footer";
 import { UpcomingServices } from "@/components/storefront/upcoming-services";
 
@@ -54,10 +55,18 @@ export default async function StorefrontPage({ params, searchParams }: Props) {
       : ordering === "closed"
         ? "Online ordering has closed for this stop."
         : null;
+  // The short version, for the spot where the Add button would be.
+  const closedLabel =
+    ordering === "not-yet"
+      ? `Opens ${formatWhen(selected.orderingOpensAt, truck.timezone, now)}`
+      : ordering === "closed"
+        ? "Ordering has closed"
+        : null;
 
   return (
     <CartProvider storageKey={cartStorageKey(truck.slug, selected.id)}>
       <main className="pb-28">
+        <YourOrderCard truckSlug={truck.slug} />
         <ServiceHero
           truck={truck}
           service={selected}
@@ -72,7 +81,7 @@ export default async function StorefrontPage({ params, searchParams }: Props) {
           selectedId={selected.id}
           now={now}
         />
-        <MenuList menu={menu} canOrder={ordering === "open"} closedReason={closedReason} />
+        <MenuList menu={menu} canOrder={ordering === "open"} closedReason={closedReason} closedLabel={closedLabel} />
         <StorefrontFooter truck={truck} />
       </main>
       <AddedNotice menu={menu} />

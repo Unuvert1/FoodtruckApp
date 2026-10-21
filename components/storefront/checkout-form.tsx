@@ -7,7 +7,8 @@ import { ChevronLeft, Minus, Plus, Trash2 } from "lucide-react";
 import { Radio } from "@base-ui/react/radio";
 import { RadioGroup } from "@base-ui/react/radio-group";
 import type { Location, Menu, PickupSlot, Service, Truck } from "@/lib/types";
-import { resolveLine, type ResolvedLine } from "@/lib/cart";
+import { findItem, resolveLine, type ResolvedLine } from "@/lib/cart";
+import { removedMessage, soldOutReason } from "@/lib/cart-check";
 import { resolveSlotChoice } from "@/lib/checkout-slot";
 import { applyBps, formatCents, orderTotals } from "@/lib/money";
 import { browserStorage, clearSavedCustomer, readSavedCustomer, writeSavedCustomer } from "@/lib/saved-customer";
@@ -51,9 +52,22 @@ export function CheckoutForm({ truck, service, location, menu, slots }: Props) {
   const [placing, startPlacing] = useTransition();
 
   const resolved = lines.map((l) => resolveLine(menu, l)).filter((l): l is ResolvedLine => l !== null);
-  const subtotal = resolved.reduce((sum, l) => sum + l.lineTotalCents, 0);
+  // Sold-out lines stay visible, flagged, but never count toward the total: the total is what would be charged.
+  const soldOutLines = resolved.filter((l) => soldOutReason(l) !== null);
+  const orderable = resolved.filter((l) => soldOutReason(l) === null);
+  const subtotal = orderable.reduce((sum, l) => sum + l.lineTotalCents, 0);
   const totals = orderTotals(subtotal, truck.taxRateBps, applyBps(subtotal, tipBps));
   const menuHref = `/${truck.slug}?service=${service.id}`;
+
+  // Items that left the menu since they were added: take them out and say so, by name.
+  const [removedNames, setRemovedNames] = useState<string[]>([]);
+  useEffect(() => {
+    if (!ready) return;
+    const gone = lines.filter((l) => !findItem(menu, l.menuItemId));
+    if (gone.length === 0) return;
+    setRemovedNames((prev) => [...prev, ...gone.map((l) => l.name ?? "An item")]);
+    for (const line of gone) setQuantity(line.key, 0);
+  }, [ready, lines, menu, setQuantity]);
 
   // Fill in the details from last time. Read after mount so the server and
   // browser render the same thing first, and never overwrite what's been typed.
@@ -102,10 +116,16 @@ export function CheckoutForm({ truck, service, location, menu, slots }: Props) {
         tipBps,
         customerName: name,
         customerPhone: phone,
-        lines: resolved.map((l) => ({ menuItemId: l.menuItemId, optionIds: l.optionIds, quantity: l.quantity })),
+        lines: orderable.map((l) => ({ menuItemId: l.menuItemId, optionIds: l.optionIds, quantity: l.quantity })),
       });
       if (!result.ok) {
-        setServerError(result.error);
+        // The server's wording for a deleted item can't name it. The refresh below brings in the new menu,
+        // and the notice at the top then names what was taken out.
+        setServerError(
+          /no longer on the menu/i.test(result.error)
+            ? "Something in your order was just taken off the menu. We've updated your order. Check it, then place it again."
+            : result.error
+        );
         router.refresh(); // pick up slots that filled or items that sold out meanwhile
         return;
       }
@@ -132,6 +152,12 @@ export function CheckoutForm({ truck, service, location, menu, slots }: Props) {
         </p>
       </header>
 
+      {removedNames.length > 0 && (
+        <p role="status" className="mx-4 mt-5 rounded-2xl bg-surface px-4 py-3.5 text-sm font-medium">
+          {removedMessage(removedNames)}
+        </p>
+      )}
+
       {ready && resolved.length === 0 && !placed ? (
         <div className="mx-4 mt-8 rounded-2xl bg-surface px-5 py-8">
           <p className="font-semibold">Your order is empty.</p>
@@ -146,36 +172,45 @@ export function CheckoutForm({ truck, service, location, menu, slots }: Props) {
             <div>
               <Section title="Items">
                 <ul className="divide-y divide-border rounded-2xl bg-surface px-4">
-                  {resolved.map((line) => (
-                    <li key={line.key} className="flex items-start gap-3 py-4">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold">{line.item.name}</p>
-                        {line.options.length > 0 && (
-                          <p className="mt-0.5 text-sm text-muted-foreground">{line.options.map((o) => o.name).join(", ")}</p>
-                        )}
-                        <p className="mt-1.5 text-sm font-medium tabular-nums">{formatCents(line.lineTotalCents)}</p>
-                      </div>
-                      <div className="flex h-10 items-center rounded-lg ring-1 ring-border">
-                        <button
-                          type="button"
-                          onClick={() => setQuantity(line.key, line.quantity - 1)}
-                          aria-label={line.quantity === 1 ? `Remove ${line.item.name}` : `One less ${line.item.name}`}
-                          className="flex size-10 items-center justify-center rounded-l-lg outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                        >
-                          {line.quantity === 1 ? <Trash2 className="size-4" /> : <Minus className="size-4" />}
-                        </button>
-                        <span className="w-5 text-center text-sm font-semibold tabular-nums">{line.quantity}</span>
-                        <button
-                          type="button"
-                          onClick={() => setQuantity(line.key, line.quantity + 1)}
-                          aria-label={`One more ${line.item.name}`}
-                          className="flex size-10 items-center justify-center rounded-r-lg outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                        >
-                          <Plus className="size-4" />
-                        </button>
-                      </div>
-                    </li>
-                  ))}
+                  {resolved.map((line) => {
+                    const unavailable = soldOutReason(line);
+                    return (
+                      <li key={line.key} className="flex items-start gap-3 py-4">
+                        <div className="min-w-0 flex-1">
+                          <p className={cn("font-semibold", unavailable && "text-muted-foreground")}>{line.item.name}</p>
+                          {line.options.length > 0 && (
+                            <p className="mt-0.5 text-sm text-muted-foreground">{line.options.map((o) => o.name).join(", ")}</p>
+                          )}
+                          {unavailable ? (
+                            <p className="mt-1.5 text-sm font-medium text-destructive">
+                              {unavailable}. Remove it to place your order.
+                            </p>
+                          ) : (
+                            <p className="mt-1.5 text-sm font-medium tabular-nums">{formatCents(line.lineTotalCents)}</p>
+                          )}
+                        </div>
+                        <div className="flex h-10 items-center rounded-lg ring-1 ring-border">
+                          <button
+                            type="button"
+                            onClick={() => setQuantity(line.key, line.quantity - 1)}
+                            aria-label={line.quantity === 1 ? `Remove ${line.item.name}` : `One less ${line.item.name}`}
+                            className="flex size-10 items-center justify-center rounded-l-lg outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                          >
+                            {line.quantity === 1 ? <Trash2 className="size-4" /> : <Minus className="size-4" />}
+                          </button>
+                          <span className="w-5 text-center text-sm font-semibold tabular-nums">{line.quantity}</span>
+                          <button
+                            type="button"
+                            onClick={() => setQuantity(line.key, line.quantity + 1)}
+                            aria-label={`One more ${line.item.name}`}
+                            className="flex size-10 items-center justify-center rounded-r-lg outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                          >
+                            <Plus className="size-4" />
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               </Section>
 
@@ -293,6 +328,13 @@ export function CheckoutForm({ truck, service, location, menu, slots }: Props) {
           </div>
 
           <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur">
+            {soldOutLines.length > 0 && (
+              <p role="alert" className="mx-auto mb-3 max-w-2xl lg:max-w-4xl text-sm font-medium text-destructive">
+                {soldOutLines.length === 1
+                  ? `${soldOutLines[0].item.name} just sold out. Remove it to place your order.`
+                  : "Some items just sold out. Remove them to place your order."}
+              </p>
+            )}
             {serverError && (
               <p role="alert" className="mx-auto mb-3 max-w-2xl lg:max-w-4xl text-sm font-medium text-destructive">
                 {serverError}
@@ -301,7 +343,7 @@ export function CheckoutForm({ truck, service, location, menu, slots }: Props) {
             <Button
               type="submit"
               aria-busy={placing}
-              disabled={placing || slots.length === 0 || resolved.length === 0}
+              disabled={placing || slots.length === 0 || orderable.length === 0 || soldOutLines.length > 0}
               className="mx-auto flex h-14 w-full max-w-2xl lg:max-w-4xl justify-between rounded-2xl px-5 text-base font-semibold"
             >
               <span>{placing ? "Placing order…" : "Place order"}</span>

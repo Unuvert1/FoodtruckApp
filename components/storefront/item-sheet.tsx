@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Minus, Plus } from "lucide-react";
+import { Clock, Minus, Plus } from "lucide-react";
 import type { MenuItem, ModifierGroup } from "@/lib/types";
 import { formatCents, unitPriceCents } from "@/lib/money";
 import { cn } from "@/lib/utils";
@@ -15,11 +15,11 @@ import { ItemPhoto } from "@/components/storefront/item-photo";
 type Props = {
   item: MenuItem | null;
   canOrder: boolean;
-  closedReason: string | null;
+  closedLabel: string | null; // short text for where the Add button would be, e.g. "Opens Wednesday at 9:00 am"
   onClose: () => void;
 };
 
-export function ItemSheet({ item, canOrder, closedReason, onClose }: Props) {
+export function ItemSheet({ item, canOrder, closedLabel, onClose }: Props) {
   // Keep showing the last item while the sheet animates closed.
   const [shown, setShown] = useState<MenuItem | null>(item);
   if (item && item !== shown) setShown(item);
@@ -31,7 +31,7 @@ export function ItemSheet({ item, canOrder, closedReason, onClose }: Props) {
         className="mx-auto max-h-[92dvh] w-full max-w-2xl gap-0 rounded-t-3xl border-0 bg-surface p-0"
       >
         {shown && (
-          <ItemSheetBody key={shown.id} item={shown} canOrder={canOrder} closedReason={closedReason} onAdded={onClose} />
+          <ItemSheetBody key={shown.id} item={shown} canOrder={canOrder} closedLabel={closedLabel} onAdded={onClose} />
         )}
       </SheetContent>
     </Sheet>
@@ -54,12 +54,12 @@ function defaultSelections(item: MenuItem): Selections {
 function ItemSheetBody({
   item,
   canOrder,
-  closedReason,
+  closedLabel,
   onAdded,
 }: {
   item: MenuItem;
   canOrder: boolean;
-  closedReason: string | null;
+  closedLabel: string | null;
   onAdded: () => void;
 }) {
   const { add } = useCart();
@@ -72,7 +72,7 @@ function ItemSheetBody({
 
   function handleAdd() {
     if (unmet || !canOrder) return;
-    add(item.id, optionIds, quantity);
+    add(item.id, optionIds, quantity, item.name);
     onAdded();
   }
 
@@ -103,42 +103,54 @@ function ItemSheetBody({
       </div>
 
       <div className="border-t border-border bg-surface px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        {!canOrder && closedReason && <p className="mb-3 text-sm text-muted-foreground">{closedReason}</p>}
-        {canOrder && unmet && (
-          <p className="mb-3 text-sm text-muted-foreground">Choose a {unmet.name.toLowerCase()} to continue.</p>
-        )}
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 items-center rounded-xl ring-1 ring-border">
-            <button
-              type="button"
-              aria-label="Remove one"
-              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-              disabled={quantity <= 1}
-              className="flex size-12 items-center justify-center rounded-l-xl outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-40"
-            >
-              <Minus className="size-4" />
-            </button>
-            <span aria-live="polite" className="w-6 text-center font-semibold tabular-nums">
-              {quantity}
-            </span>
-            <button
-              type="button"
-              aria-label="Add one"
-              onClick={() => setQuantity((q) => Math.min(20, q + 1))}
-              className="flex size-12 items-center justify-center rounded-r-xl outline-none focus-visible:ring-2 focus-visible:ring-brand"
-            >
-              <Plus className="size-4" />
-            </button>
+        {canOrder ? (
+          <>
+            {unmet && <p className="mb-3 text-sm text-muted-foreground">Choose a {unmet.name.toLowerCase()} to continue.</p>}
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 items-center rounded-xl ring-1 ring-border">
+                <button
+                  type="button"
+                  aria-label="Remove one"
+                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  disabled={quantity <= 1}
+                  className="flex size-12 items-center justify-center rounded-l-xl outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-40"
+                >
+                  <Minus className="size-4" />
+                </button>
+                <span aria-live="polite" className="w-6 text-center font-semibold tabular-nums">
+                  {quantity}
+                </span>
+                <button
+                  type="button"
+                  aria-label="Add one"
+                  onClick={() => setQuantity((q) => Math.min(20, q + 1))}
+                  className="flex size-12 items-center justify-center rounded-r-xl outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                >
+                  <Plus className="size-4" />
+                </button>
+              </div>
+              <Button
+                onClick={handleAdd}
+                disabled={Boolean(unmet)}
+                className="h-12 flex-1 justify-between rounded-xl px-5 text-base font-semibold"
+              >
+                <span>Add to order</span>
+                <span className="tabular-nums">{formatCents(totalCents)}</span>
+              </Button>
+            </div>
+          </>
+        ) : (
+          // Not a greyed-out button: it reads as a fact about the stop, not a broken control.
+          <div className="flex items-center gap-3">
+            <p className="flex min-h-12 flex-1 items-center gap-2.5 font-semibold">
+              <Clock aria-hidden className="size-5 shrink-0 text-muted-foreground" />
+              {closedLabel ?? "Ordering isn't open"}
+            </p>
+            <Button variant="outline" onClick={onAdded} className="h-12 rounded-xl px-5 text-base font-semibold">
+              Back to menu
+            </Button>
           </div>
-          <Button
-            onClick={handleAdd}
-            disabled={!canOrder || Boolean(unmet)}
-            className="h-12 flex-1 justify-between rounded-xl px-5 text-base font-semibold"
-          >
-            <span>Add to order</span>
-            <span className="tabular-nums">{formatCents(totalCents)}</span>
-          </Button>
-        </div>
+        )}
       </div>
     </>
   );

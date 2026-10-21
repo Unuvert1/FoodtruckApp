@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Minus, Plus, Search, Trash2 } from "lucide-react";
+import { Clock, Minus, Plus, Search, Trash2 } from "lucide-react";
 import type { Menu, MenuItem } from "@/lib/types";
 import { lineKey } from "@/lib/cart";
 import { formatCents } from "@/lib/money";
@@ -19,10 +19,11 @@ const SPY_ROOT_MARGIN = "-72px 0px -65% 0px";
 type Props = {
   menu: Menu;
   canOrder: boolean;
-  closedReason: string | null; // shown in the item sheet when ordering isn't open
+  closedReason: string | null; // the full sentence, shown once above the menu when ordering isn't open
+  closedLabel: string | null; // the short form, shown where the Add button would be in an item sheet
 };
 
-export function MenuList({ menu, canOrder, closedReason }: Props) {
+export function MenuList({ menu, canOrder, closedReason, closedLabel }: Props) {
   const [openItem, setOpenItem] = useState<MenuItem | null>(null);
   const [query, setQuery] = useState("");
   const [hideSoldOut, setHideSoldOut] = useState(false);
@@ -137,6 +138,16 @@ export function MenuList({ menu, canOrder, closedReason }: Props) {
           Menu
         </h2>
 
+        {!canOrder && closedReason && (
+          <div className="mt-3 flex items-start gap-3 rounded-2xl bg-surface px-4 py-3.5">
+            <Clock aria-hidden className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+            <div>
+              <p className="font-semibold">{closedReason}</p>
+              <p className="mt-0.5 text-sm text-muted-foreground">You can look around now. Adding to your order isn&apos;t available yet.</p>
+            </div>
+          </div>
+        )}
+
         <div role="search" className="mt-3 space-y-3">
           <div className="relative">
             <label htmlFor="menu-search" className="sr-only">
@@ -237,7 +248,7 @@ export function MenuList({ menu, canOrder, closedReason }: Props) {
       <ItemSheet
         item={openItem}
         canOrder={canOrder}
-        closedReason={closedReason}
+        closedLabel={closedLabel}
         onClose={() => setOpenItem(null)}
       />
     </section>
@@ -300,7 +311,7 @@ function MenuRow({ item, canOrder, onSelect }: { item: MenuItem; canOrder: boole
               <Plus className="size-4.5" strokeWidth={2.5} />
             </RoundButton>
           ) : quantity === 0 ? (
-            <RoundButton label={`Add ${item.name} to order`} onClick={() => add(item.id, [], 1)}>
+            <RoundButton label={`Add ${item.name} to order`} onClick={() => add(item.id, [], 1, item.name)}>
               <Plus className="size-4.5" strokeWidth={2.5} />
             </RoundButton>
           ) : (

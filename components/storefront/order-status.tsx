@@ -6,6 +6,7 @@ import { directionsUrl } from "@/lib/service";
 import { formatDayLabel, formatTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { OrderActions } from "@/components/storefront/order-actions";
+import { ReadyAlert } from "@/components/storefront/ready-alert";
 import { RefreshStatus } from "@/components/storefront/refresh-status";
 
 // Customer-facing progress, in the order it happens. Each kitchen status gets
@@ -55,6 +56,8 @@ export function OrderStatus({ truck, order, location, refresh }: Props) {
         </h1>
         <p className="mt-3 text-[0.9375rem] opacity-90">Show this number at the pickup window.</p>
       </section>
+
+      <ReadyAlert orderId={order.id} orderNumber={order.orderNumber} truckName={truck.name} status={order.status} />
 
       <div className="md:grid md:grid-cols-2 md:items-start md:gap-x-4">
         <div>
