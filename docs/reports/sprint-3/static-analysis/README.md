@@ -16,8 +16,6 @@ document covering everything:
 | Appendix A | Full Trivy results — every finding, its dependency path, remediation plan |
 | Appendix B | Full Sonar results — all 47 issues, hotspot reviews, quality gate |
 
-The `.html` file beside it is the source the PDF was printed from.
-
 ## Headline numbers
 
 | Trivy | Count |  | Sonar | Count |
