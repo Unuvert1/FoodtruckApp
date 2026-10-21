@@ -23,9 +23,9 @@ hosting on Vercel is still outstanding.
 | Metric | Count |
 |---|---|
 | Issues in the sprint | 20 |
-| Issues completed | 10 |
+| Issues completed | 14 |
 | Issues in progress | 5 |
-| Issues not started | 5 |
+| Issues not started | 1 |
 | Issues added mid-sprint | 9 |
 
 Nine issues were added during the sprint (FPS-47 to FPS-55). They are the vendor
@@ -42,7 +42,7 @@ Two issues carried over from Sprint 2: FPS-37 (schedule screen) and FPS-30
 
 | Type | To Do | In Progress | Done |
 |---|---|---|---|
-| Story | 5 | 4 | 9 |
+| Story | 1 | 4 | 13 |
 | Task | 0 | 1 | 1 |
 | Bug | 0 | 0 | 0 |
 
@@ -53,7 +53,7 @@ Two issues carried over from Sprint 2: FPS-37 (schedule screen) and FPS-30
 | Student | Issues Assigned | Issues Completed |
 |---|---|---|
 | Unubileg (vendor dashboard, settings, POS, schedule) | 11 | 10 |
-| Jovanni Maya (customer storefront and checkout) | 9 | 0 |
+| Jovanni Maya (customer storefront and checkout) | 9 | 4 |
 
 Work was split by surface again, and this time there were no merge conflicts at
 all — the two file lists did not overlap. Jovanni's previous branch was merged to
@@ -63,8 +63,11 @@ One overlap to resolve: FPS-45 ("show the stop note") is Jovanni's, but the stop
 note was rendered on the storefront hero as part of wiring up the schedule. His
 ticket was left untouched and the overlap is noted in FPS-55's comment.
 
-Jovanni's nine issues are in progress or not started at the time of this report;
-his sprint work is ongoing.
+Of Jovanni's nine issues, four are done (FPS-38 to FPS-41, merged in PR #9).
+Four more are built and waiting on review in open PR #11 (FPS-42, FPS-43, FPS-44
+and FPS-46), so they are In Progress. FPS-45 is not started: the stop note already
+shows on the storefront from the schedule work, so it needs checking and closing
+rather than building.
 
 ---
 
@@ -73,10 +76,12 @@ his sprint work is ongoing.
 | Metric | Value |
 |---|---|
 | Total story points in the sprint | 54 |
-| Story points completed | 31 |
-| Completion % | 57% |
+| Story points completed | 40 |
+| Completion % | 74% |
 
-Per person, completed: Unubileg 31, Jovanni 0 so far.
+Per person, completed: Unubileg 31 of 34, Jovanni 9 of 20. Another 10 of Jovanni's
+points (FPS-42, 43, 44, 46) are built and in PR #11 but not merged, so they are not
+counted as completed.
 
 The split is uneven this sprint — 34 points assigned to one side and 20 to the
 other. The estimates were not adjusted to make them match, because the vendor side
@@ -118,6 +123,11 @@ and it had no existing code to build on.
   settings features" and became five tickets (FPS-48 to FPS-53) once we looked at
   what a settings area actually needs: invites, an account section, real
   notification controls, and a way to close a truck.
+
+- **Customer-side work waiting on review.** FPS-38 to FPS-41 are merged (PR #9) and
+  Done. FPS-42, FPS-43, FPS-44 and FPS-46 are built and sit in open PR #11, so they
+  stay In Progress until it is reviewed and merged. They move to Done only after the
+  merge.
 
 - **Why work is carrying over.** FPS-30 (Vercel) is prepared but not deployed; the
   deploy is a manual step after the branch is pushed. POS recording a sale and the
