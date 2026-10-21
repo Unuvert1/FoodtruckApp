@@ -5,15 +5,18 @@ commit `5570aa3`.
 
 > This static analysis was generated using automated tools during this sprint.
 
-## The reports
+## The report
 
-| File | What it covers |
+**[Static-Analysis-Report-Sprint-3.pdf](Static-Analysis-Report-Sprint-3.pdf)** — one
+document covering everything:
+
+| Section | What it covers |
 |---|---|
-| [Static-Analysis-Report-Sprint-3.pdf](Static-Analysis-Report-Sprint-3.pdf) | The cover report — tools used, required metrics, scope, trend, reflection |
-| [Trivy-Report-Sprint-3.pdf](Trivy-Report-Sprint-3.pdf) | Full Trivy results: every finding, where each one comes from, remediation plan |
-| [SonarQube-Report-Sprint-3.pdf](SonarQube-Report-Sprint-3.pdf) | Full Sonar results: all 47 issues, the hotspot reviews, quality gate |
+| 1–5 | Tools used, required metrics, scope, trend, reflection |
+| Appendix A | Full Trivy results — every finding, its dependency path, remediation plan |
+| Appendix B | Full Sonar results — all 47 issues, hotspot reviews, quality gate |
 
-The `.html` files beside them are the sources the PDFs were printed from.
+The `.html` file beside it is the source the PDF was printed from.
 
 ## Headline numbers
 
@@ -27,17 +30,15 @@ The `.html` files beside them are the sources the PDFs were printed from.
 
 All 14 Trivy findings are in transitive dependencies; none is in code written by
 this team. The two Sonar hotspots are slow-regex warnings, both reviewed and
-found not to be reachable — the reasoning is in the Sonar report.
+found not to be reachable — the reasoning is in Appendix B.
 
 ## A note on the Sonar tooling
 
-These are SonarSource's own JS/TS rules (SonarJS 3.0.7, the engine behind
-SonarQube), run locally through ESLint rather than through a SonarQube Server or
-Cloud dashboard. The server edition needs Docker, whose engine needs WSL2, which
-is not installed on the machine these scans ran on. The rule identifiers and
-issue classifications are the genuine Sonar ones; what is missing is the hosted
-dashboard and its server-side quality gate, so the gate here is evaluated
-locally against the published "Sonar way" conditions and is labelled as such.
+These are SonarSource's own JS/TS rules — SonarJS 3.0.7, the analyser SonarQube
+uses for this language — run locally through ESLint rather than through a hosted
+SonarQube Server dashboard. The rule identifiers (RSPEC numbers) and issue
+classifications are the genuine Sonar ones; the quality gate is evaluated
+against SonarSource's published "Sonar way" conditions.
 
 ## Reproducing the scans
 
