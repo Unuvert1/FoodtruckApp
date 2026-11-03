@@ -132,6 +132,11 @@ export function CheckoutForm({ truck, service, location, menu, slots }: Props) {
       writeSavedCustomer(browserStorage(), { name, phone });
       setPlaced(true);
       clear();
+      // With payments on, the customer pays on Stripe's page first and comes back to their order.
+      if (result.payUrl) {
+        window.location.assign(result.payUrl);
+        return;
+      }
       router.push(`/${truck.slug}/order/${result.orderId}`);
     });
   }

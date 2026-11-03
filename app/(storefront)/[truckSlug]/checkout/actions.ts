@@ -4,6 +4,8 @@ import { z } from "zod";
 import { getTruckFromRequest } from "@/lib/tenant";
 import { createOrder } from "@/lib/orders/createOrder";
 import { markOrderPaid } from "@/lib/orders/markOrderPaid";
+import { createPaymentLink, requestOrigin } from "@/lib/payments/startPayment";
+import { paymentsEnabled } from "@/lib/stripe";
 import { MAX_QUANTITY_PER_LINE, MAX_TIP_BPS } from "@/lib/pricing";
 
 // Only IDs, quantities, and the customer's details come from the browser.
@@ -31,7 +33,8 @@ const placeOrderSchema = z.object({
     .max(50),
 });
 
-export type PlaceOrderResult = { ok: true; orderId: string } | { ok: false; error: string };
+/** `payUrl` is Stripe's payment page; without it the order page shows a "Pay now" button instead. */
+export type PlaceOrderResult = { ok: true; orderId: string; payUrl?: string } | { ok: false; error: string };
 
 export async function placeOrder(input: z.input<typeof placeOrderSchema>): Promise<PlaceOrderResult> {
   const parsed = placeOrderSchema.safeParse(input);
@@ -44,9 +47,19 @@ export async function placeOrder(input: z.input<typeof placeOrderSchema>): Promi
   const result = await createOrder({ ...order, truckId: truck.id, source: "WEB" });
   if (!result.ok) return result;
 
-  // TODO(Stream C): redirect to Stripe Checkout here instead. The Stripe
-  // webhook then calls markOrderPaid. For now the order is treated as paid.
-  await markOrderPaid(truck.id, result.orderId);
+  // Without Stripe keys (local development) the order is treated as paid, as before.
+  if (!paymentsEnabled()) {
+    await markOrderPaid(truck.id, result.orderId);
+    return { ok: true, orderId: result.orderId };
+  }
 
+  // Otherwise the order stays unpaid until Stripe's webhook confirms the payment. If Stripe can't be
+  // reached right now, the customer lands on their order page, which has a "Pay now" button.
+  try {
+    const pay = await createPaymentLink({ truckId: truck.id, truckSlug: truck.slug, orderId: result.orderId, origin: await requestOrigin() });
+    if (pay.ok) return { ok: true, orderId: result.orderId, payUrl: pay.url };
+  } catch (error) {
+    console.error("[stripe] couldn't start checkout", error);
+  }
   return { ok: true, orderId: result.orderId };
 }

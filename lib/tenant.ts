@@ -335,7 +335,7 @@ export async function getOrderForCustomer(
   orderId: string
 ): Promise<{ order: OrderView; location: Location } | null> {
   const row = await prisma.order.findFirst({
-    where: { id: orderId, truckId, status: { not: "PENDING_PAYMENT" } },
+    where: { id: orderId, truckId },
     include: { ...orderInclude, service: { include: { location: true } } },
   });
   // A counter sale has no stop, so it has no customer-facing status page.
@@ -413,12 +413,63 @@ export async function insertOrder(
 }
 
 /** PENDING_PAYMENT → PAID. Returns false if it was already paid (safe to call twice). */
-export async function setOrderPaid(truckId: string, orderId: string): Promise<boolean> {
+export async function setOrderPaid(truckId: string, orderId: string, paymentIntentId?: string | null): Promise<boolean> {
   const { count } = await prisma.order.updateMany({
     where: { id: orderId, truckId, status: "PENDING_PAYMENT" },
-    data: { status: "PAID" },
+    data: { status: "PAID", ...(paymentIntentId ? { stripePaymentIntentId: paymentIntentId } : {}) },
   });
   return count === 1;
+}
+
+/** An order and the Stripe checkout session it is waiting on, whatever its status. */
+export async function getOrderForPayment(truckId: string, orderId: string) {
+  const row = await prisma.order.findFirst({ where: { id: orderId, truckId }, include: orderInclude });
+  if (!row) return null;
+  return { order: toOrderView(row), stripeCheckoutSessionId: row.stripeCheckoutSessionId };
+}
+
+/** Remember which Stripe session an unpaid order is being paid through. Returns false if it is no longer unpaid. */
+export async function setOrderCheckoutSession(truckId: string, orderId: string, sessionId: string): Promise<boolean> {
+  const { count } = await prisma.order.updateMany({
+    where: { id: orderId, truckId, status: "PENDING_PAYMENT" },
+    data: { stripeCheckoutSessionId: sessionId },
+  });
+  return count === 1;
+}
+
+/** An unpaid order that was abandoned or expired: cancel it and give its pickup-slot seat back. */
+export async function cancelUnpaidOrder(truckId: string, orderId: string): Promise<boolean> {
+  return prisma.$transaction(async (tx) => {
+    const { count } = await tx.order.updateMany({
+      where: { id: orderId, truckId, status: "PENDING_PAYMENT" }, // the gate: a paid order is never cancelled here
+      data: { status: "CANCELLED" },
+    });
+    if (count !== 1) return false;
+    const order = await tx.order.findFirst({ where: { id: orderId, truckId }, select: { pickupSlotId: true } });
+    if (order?.pickupSlotId) {
+      await tx.pickupSlot.updateMany({
+        where: { id: order.pickupSlotId, bookedCount: { gt: 0 } },
+        data: { bookedCount: { decrement: 1 } },
+      });
+    }
+    return true;
+  });
+}
+
+// ─── Stripe webhook bookkeeping (not tenant data: events arrive before we know the truck) ──
+
+/** Record that a Stripe event arrived. True if it still needs processing: new, or seen but never finished. */
+export async function claimWebhookEvent(stripeEventId: string, type: string): Promise<boolean> {
+  const row = await prisma.webhookEvent.upsert({
+    where: { stripeEventId },
+    create: { stripeEventId, type },
+    update: {},
+  });
+  return row.processedAt === null;
+}
+
+export async function finishWebhookEvent(stripeEventId: string): Promise<void> {
+  await prisma.webhookEvent.updateMany({ where: { stripeEventId, processedAt: null }, data: { processedAt: new Date() } });
 }
 
 /** Everything the new-order email needs. */
