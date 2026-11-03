@@ -3,19 +3,23 @@ import { notFound } from "next/navigation";
 import { getOrderForCustomer, getTruckFromRequest } from "@/lib/tenant";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { OrderStatus } from "@/components/storefront/order-status";
+import { PaymentPending } from "@/components/storefront/payment-pending";
 import { RememberOrder } from "@/components/storefront/remember-order";
 
 export const dynamic = "force-dynamic";
 
 const POLL_SECONDS = 15;
 const POLL_SECONDS_UNCONFIRMED = 8;
+const POLL_SECONDS_PAYMENT = 4; // just back from Stripe: the webhook is usually seconds away
 
 type Props = {
   params: Promise<{ truckSlug: string; orderId: string }>;
+  searchParams: Promise<{ paid?: string }>;
 };
 
-export default async function OrderPage({ params }: Props) {
+export default async function OrderPage({ params, searchParams }: Props) {
   const { truckSlug, orderId } = await params;
+  const { paid } = await searchParams;
   const truck = await getTruckFromRequest(truckSlug);
   if (!truck) notFound();
 
@@ -31,6 +35,17 @@ export default async function OrderPage({ params }: Props) {
           Back to {truck.name}
         </Link>
       </main>
+    );
+  }
+
+  // Not paid yet: the truck can't see this order, so it gets its own screen, and nothing is remembered on this device.
+  if (found.order.status === "PENDING_PAYMENT") {
+    const confirming = paid === "1";
+    return (
+      <>
+        <PaymentPending truck={truck} order={found.order} location={found.location} confirming={confirming} />
+        <AutoRefresh seconds={confirming ? POLL_SECONDS_PAYMENT : POLL_SECONDS} />
+      </>
     );
   }
 
