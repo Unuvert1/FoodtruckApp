@@ -188,7 +188,8 @@ export type OrderingDefaults = {
   slotLeadMinutes: number;
 };
 
-export type PaymentStatus = { accountId: string | null; onboarded: boolean };
+/** Which Stripe keys the server is running on. See lib/stripe.ts. */
+export type PaymentsMode = "off" | "test" | "live";
 
 export type TeamMember = {
   id: string;

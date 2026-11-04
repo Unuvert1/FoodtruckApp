@@ -21,7 +21,6 @@ import type {
   MenuItem,
   OrderView,
   OrderingDefaults,
-  PaymentStatus,
   PendingInvite,
   PickupSlot,
   ScheduleRow,
@@ -1006,13 +1005,9 @@ export async function getOrderingDefaults(truckId: string): Promise<OrderingDefa
   });
 }
 
-export async function getPaymentStatus(truckId: string): Promise<PaymentStatus> {
-  const row = await prisma.truck.findUniqueOrThrow({
-    where: { id: truckId },
-    select: { stripeAccountId: true, stripeOnboarded: true },
-  });
-  return { accountId: row.stripeAccountId, onboarded: row.stripeOnboarded };
-}
+// Truck.stripeAccountId / stripeOnboarded stay in the schema for per-truck
+// Connect payouts later. Nothing sets them today, so nothing reads them: card
+// payments run on the server's own keys (lib/stripe.ts).
 
 export async function getLocations(truckId: string, opts: { includeArchived?: boolean } = {}): Promise<Location[]> {
   const rows = await prisma.location.findMany({

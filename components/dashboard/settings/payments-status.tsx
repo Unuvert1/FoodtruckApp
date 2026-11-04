@@ -1,30 +1,46 @@
-import { Button } from "@/components/ui/button";
 import { FieldRow } from "@/components/dashboard/settings/field-row";
 import { Section } from "@/components/dashboard/settings/section";
-import type { PaymentStatus } from "@/lib/types";
+import type { PaymentsMode } from "@/lib/types";
 
-function statusOf({ accountId, onboarded }: PaymentStatus) {
-  if (!accountId) return { label: "Not connected", className: "bg-muted text-muted-foreground" };
-  if (!onboarded) return { label: "Setup incomplete", className: "bg-signal text-signal-foreground" };
-  return { label: "Connected", className: "bg-ok text-white" };
-}
+const BADGE = {
+  live: { label: "On", className: "bg-ok text-white" },
+  test: { label: "On · test mode", className: "bg-signal text-signal-foreground" },
+  off: { label: "Off", className: "bg-muted text-muted-foreground" },
+} satisfies Record<PaymentsMode, { label: string; className: string }>;
 
-export function PaymentsStatus({ status }: { status: PaymentStatus }) {
-  const { label, className } = statusOf(status);
+const EXPLAINER: Record<PaymentsMode, string> = {
+  live: "Customers pay by card at checkout. Real money moves.",
+  test: "Customers pay by card at checkout, against Stripe's test keys. Use card 4242 4242 4242 4242 — no real money moves.",
+  off: "No Stripe keys are set on this server, so orders are marked paid the moment they are placed and nobody is charged.",
+};
+
+export function PaymentsStatus({ mode }: { mode: PaymentsMode }) {
+  const badge = BADGE[mode];
 
   return (
-    <Section title="Payments" description="How customers pay you and how you get paid.">
-      <FieldRow label="Stripe status">
-        <span className={`mt-2.5 inline-flex h-7 items-center rounded-full px-3 text-xs font-bold ${className}`}>{label}</span>
+    <Section title="Payments" description="How customers pay you.">
+      <FieldRow label="Card payments" hint={EXPLAINER[mode]}>
+        <span className={`mt-2.5 inline-flex h-7 items-center rounded-full px-3 text-xs font-bold ${badge.className}`}>
+          {badge.label}
+        </span>
       </FieldRow>
-      <FieldRow label="Connect Stripe" hint="Orders are marked paid on creation until Stripe is wired up.">
-        {/* TODO(stream C): start Stripe Connect onboarding here (create the account, redirect to the onboarding link). */}
-        <Button type="button" disabled className="h-12 rounded-xl px-5 text-base font-semibold">
-          Connect Stripe
-        </Button>
+      <FieldRow label="How it works">
+        <p className="pt-3 text-sm text-muted-foreground">
+          Checkout sends the customer to Stripe. An order only becomes paid when Stripe tells us so, not when the
+          customer&apos;s browser comes back — so a closed tab or a flaky connection can&apos;t lose a sale. An
+          abandoned checkout releases its pickup slot automatically.
+        </p>
+      </FieldRow>
+      <FieldRow label="Counter sales">
+        <p className="pt-3 text-sm text-muted-foreground">
+          Cash and card taken at the window go through the POS and are recorded as paid there. Stripe is not involved.
+        </p>
       </FieldRow>
       <FieldRow label="Payouts">
-        <p className="pt-3 text-sm text-muted-foreground">Your payout account and schedule are managed in Stripe, not here.</p>
+        <p className="pt-3 text-sm text-muted-foreground">
+          Card payments currently settle to the platform&apos;s Stripe account. Connecting each truck&apos;s own
+          account for direct payouts is a later step.
+        </p>
       </FieldRow>
     </Section>
   );
