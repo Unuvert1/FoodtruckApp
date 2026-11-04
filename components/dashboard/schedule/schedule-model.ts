@@ -1,9 +1,10 @@
-// Pure helpers for the Schedule screen: status labels, repeat dates, and the
-// ordering-window presets (which the actions want as plain numbers).
+// Pure helpers for the Schedule screen: status labels, the drafts the two
+// sheets start from, and the ordering-window presets (which the actions want as
+// plain numbers).
 
 import { MAX_OPENS_HOURS_BEFORE, closesMinutesBeforeOf, opensHoursBeforeOf } from "@/lib/schedule/ordering-window";
-import { addDaysToDateKey, toZonedDateInput, toZonedTimeInput, zonedDateKey, zonedTimeFromParts } from "@/lib/time";
-import type { ScheduleRow, Service, StopDraft } from "@/lib/types";
+import { addDaysToDateKey, toZonedDateInput, toZonedTimeInput, zonedTimeFromParts } from "@/lib/time";
+import type { RuleDraft, ScheduleRule, Service, StopDraft } from "@/lib/types";
 
 export type StopStatusView = { label: "Draft" | "Published" | "Live" | "Done" | "Cancelled"; tone: "draft" | "published" | "live" | "quiet" };
 
@@ -32,20 +33,19 @@ export function draftFromService(service: Service, timeZone: string): StopDraft 
   };
 }
 
-/** Whole weeks to jump so a repeat lands today or later, and not on a day this spot already has a stop. */
-export function repeatWeeks(service: Service, rows: ScheduleRow[], timeZone: string, now: Date): number {
-  const base = toZonedDateInput(service.startsAt, timeZone);
-  const today = zonedDateKey(now, timeZone);
-  const taken = new Set(
-    rows
-      .filter((r) => r.service.locationId === service.locationId && r.service.status !== "CANCELLED")
-      .map((r) => zonedDateKey(r.service.startsAt, timeZone))
-  );
-  for (let weeks = 1; weeks < 52; weeks++) {
-    const date = addDaysToDateKey(base, weeks * 7);
-    if (date >= today && !taken.has(date)) return weeks;
-  }
-  return 52;
+export function draftFromRule(rule: ScheduleRule): RuleDraft {
+  return {
+    ruleId: rule.id,
+    locationId: rule.locationId,
+    weekdays: rule.weekdays,
+    startTime: rule.startTime,
+    endTime: rule.endTime,
+    opensHoursBefore: rule.opensHoursBefore,
+    closesMinutesBefore: rule.closesMinutesBefore,
+    slotMinutes: rule.slotMinutes,
+    ordersPerSlot: rule.ordersPerSlot,
+    publicNote: rule.publicNote,
+  };
 }
 
 // ─── Ordering-window presets ───────────────────────────────────────────────

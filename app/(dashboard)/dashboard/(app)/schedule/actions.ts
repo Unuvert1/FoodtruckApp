@@ -7,20 +7,23 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { ActionResult } from "@/app/(dashboard)/dashboard/actions";
-import { MAX_CLOSES_MINUTES_BEFORE, MAX_OPENS_HOURS_BEFORE, closesMinutesBeforeOf, opensHoursBeforeOf } from "@/lib/schedule/ordering-window";
+import { MAX_CLOSES_MINUTES_BEFORE, MAX_OPENS_HOURS_BEFORE } from "@/lib/schedule/ordering-window";
+import { materializeScheduleRules } from "@/lib/schedule/materialize";
 import { saveService } from "@/lib/schedule/saveService";
 import {
   createLocation,
+  createScheduleRule,
   findLocationByPlaceId,
-  getServiceForEdit,
+  removeUnbookedRuleStops,
   requireTruckAccess,
   serviceHasOrders,
   setLocationArchived,
+  setScheduleRuleActive,
   setServiceStatus,
   updateLocation,
+  updateScheduleRule,
 } from "@/lib/tenant";
-import { addDaysToDateKey, toZonedDateInput, toZonedTimeInput, zonedTimeFromParts } from "@/lib/time";
-import type { StopDraft } from "@/lib/types";
+import { zonedTimeFromParts } from "@/lib/time";
 
 const id = z.string().min(1).max(50);
 const fail = (error: string): ActionResult => ({ ok: false, error });
@@ -164,31 +167,95 @@ export async function setStopStatus(input: { serviceId: string; status: "DRAFT" 
   return updated ? { ok: true } : fail("That stop no longer exists, or was already cancelled.");
 }
 
-/** A pre-filled draft for the sheet, a number of weeks later. Writes nothing: saving it makes a new stop. */
-export async function repeatStop(input: { serviceId: string; weeks: number }): Promise<{ ok: true; draft: StopDraft } | { ok: false; error: string }> {
+// ─── Repeating stops ───────────────────────────────────────────────────────
+//
+// A rule replaces the old per-row "Repeat next week", which had to be tapped
+// again every week and so was never really a schedule. One-off stops stay for
+// festivals and specials; anything standing becomes a rule.
+
+const ruleSchema = z
+  .object({
+    ruleId: id.optional(), // present = editing
+    locationId: id.optional(), // an existing saved spot …
+    place: placeSchema.optional(), // … or a new one. Exactly one is required.
+    weekdays: z.array(z.number().int().min(0).max(6)).min(1, "Pick at least one day of the week.").max(7),
+    startTime: timeOfDay("Pick a start time."),
+    endTime: timeOfDay("Pick an end time."),
+    opensHoursBefore: z.number().int().min(0).max(MAX_OPENS_HOURS_BEFORE),
+    closesMinutesBefore: z.number().int().min(0).max(MAX_CLOSES_MINUTES_BEFORE),
+    slotMinutes: z.number().int().min(5, "Pickup times need to be at least 5 minutes apart.").max(60, "Pickup times can be at most 60 minutes apart."),
+    ordersPerSlot: z.number().int().min(1, "Allow at least 1 order per pickup time.").max(60, "Keep it to 60 orders or fewer per pickup time."),
+    publicNote: z.string().trim().max(200, "Keep the note under 200 characters."),
+  })
+  .refine((v) => v.endTime > v.startTime, { message: "The end time has to be after the start time.", path: ["endTime"] })
+  .refine((v) => Boolean(v.locationId) !== Boolean(v.place), { message: "Choose where this stop is.", path: ["place"] });
+
+export type SaveRuleResult = { ok: true; created: number } | { ok: false; error: string; field?: "place" | "endTime" | "weekdays" };
+
+export async function saveRule(input: z.input<typeof ruleSchema>): Promise<SaveRuleResult> {
   const { truck, role } = await requireTruckAccess();
   if (role !== "OWNER") return { ok: false, error: OWNER_ONLY };
-  const parsed = z.object({ serviceId: id, weeks: z.number().int().min(1).max(52) }).safeParse(input);
-  if (!parsed.success) return { ok: false, error: "That stop can't be repeated." };
+  const parsed = ruleSchema.safeParse(input);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const field = issue.path[0];
+    return field === "place" || field === "endTime" || field === "weekdays"
+      ? { ok: false, error: issue.message, field }
+      : { ok: false, error: issue.message };
+  }
+  const v = parsed.data;
 
-  const row = await getServiceForEdit(truck.id, parsed.data.serviceId);
-  if (!row) return { ok: false, error: "That stop no longer exists." };
+  let locationId = v.locationId;
+  if (v.place) {
+    const { provider, providerPlaceId } = v.place;
+    const known = provider !== "manual" && providerPlaceId ? await findLocationByPlaceId(truck.id, provider, providerPlaceId) : null;
+    locationId = known?.id ?? (await createLocation(truck.id, v.place));
+  }
+  if (!locationId) return { ok: false, error: "Choose where this stop is.", field: "place" };
 
-  const { service } = row;
-  const startsAt = new Date(service.startsAt);
-  const endsAt = new Date(service.endsAt);
-  return {
-    ok: true,
-    draft: {
-      locationId: service.locationId,
-      date: addDaysToDateKey(toZonedDateInput(startsAt, truck.timezone), parsed.data.weeks * 7),
-      startTime: toZonedTimeInput(startsAt, truck.timezone),
-      endTime: toZonedTimeInput(endsAt, truck.timezone),
-      opensHoursBefore: opensHoursBeforeOf(startsAt, new Date(service.orderingOpensAt)),
-      closesMinutesBefore: closesMinutesBeforeOf(endsAt, new Date(service.orderingClosesAt)),
-      slotMinutes: service.slotMinutes,
-      ordersPerSlot: service.ordersPerSlot,
-      publicNote: service.publicNote,
-    },
+  const data = {
+    locationId,
+    weekdays: [...new Set(v.weekdays)].sort((a, b) => a - b),
+    startTime: v.startTime,
+    endTime: v.endTime,
+    opensHoursBefore: v.opensHoursBefore,
+    closesMinutesBefore: v.closesMinutesBefore,
+    slotMinutes: v.slotMinutes,
+    ordersPerSlot: v.ordersPerSlot,
+    publicNote: v.publicNote,
+    active: true,
   };
+
+  if (v.ruleId) {
+    if (!(await updateScheduleRule(truck.id, v.ruleId, data))) return { ok: false, error: "That repeating stop no longer exists." };
+    // Days it no longer covers, or times that moved, shouldn't linger on the
+    // calendar. Anything booked survives; the generator then refills.
+    await removeUnbookedRuleStops(truck.id, v.ruleId, new Date());
+  } else {
+    await createScheduleRule(truck.id, data);
+  }
+
+  const created = await materializeScheduleRules(truck.id, truck.timezone, new Date());
+  refresh(truck.slug);
+  return { ok: true, created };
+}
+
+export async function setRuleActive(input: { ruleId: string; active: boolean }): Promise<ActionResult> {
+  const { truck, role } = await requireTruckAccess();
+  if (role !== "OWNER") return fail(OWNER_ONLY);
+  const parsed = z.object({ ruleId: id, active: z.boolean() }).safeParse(input);
+  if (!parsed.success) return fail("That repeating stop can't be updated.");
+  const { ruleId, active } = parsed.data;
+
+  if (!(await setScheduleRuleActive(truck.id, ruleId, active))) return fail("That repeating stop no longer exists.");
+
+  if (active) {
+    await materializeScheduleRules(truck.id, truck.timezone, new Date());
+  } else {
+    // Switching off clears what nobody has booked. Stops with orders stay:
+    // a customer is holding a pickup time, and those are cancelled by hand.
+    await removeUnbookedRuleStops(truck.id, ruleId, new Date());
+  }
+  refresh(truck.slug);
+  return { ok: true };
 }

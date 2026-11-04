@@ -3,31 +3,37 @@
 import { useState, useTransition } from "react";
 import { Menu } from "@base-ui/react/menu";
 import { Ellipsis, Plus } from "lucide-react";
-import { archiveSpot, repeatStop, setStopStatus } from "@/app/(dashboard)/dashboard/(app)/schedule/actions";
+import { archiveSpot, setRuleActive, setStopStatus } from "@/app/(dashboard)/dashboard/(app)/schedule/actions";
 import { singleLineAddress } from "@/lib/service";
 import { formatDayParts, formatTimeRange } from "@/lib/time";
-import type { Location, ScheduleRow, StopDraft } from "@/lib/types";
+import { weekdaysLabel } from "@/lib/schedule/rules";
+import type { Location, RuleDraft, ScheduleRow, ScheduleRuleRow, StopDraft } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/dashboard/error-banner";
 import { SpotSheet, type SpotEditing } from "@/components/dashboard/schedule/spot-sheet";
 import { StopSheet, type StopEditing } from "@/components/dashboard/schedule/stop-sheet";
-import { draftFromService, repeatWeeks, statusView, type StopStatusView } from "@/components/dashboard/schedule/schedule-model";
+import { RuleSheet, type RuleEditing } from "@/components/dashboard/schedule/rule-sheet";
+import { draftFromRule, draftFromService, statusView, type StopStatusView } from "@/components/dashboard/schedule/schedule-model";
 
 type Props = {
   rows: ScheduleRow[];
+  rules: ScheduleRuleRow[];
   spots: Location[];
   timeZone: string;
   /** What a brand-new stop starts with, from the vendor's latest one. */
   newDraft: StopDraft;
+  /** The same, for a brand-new repeating stop. */
+  newRuleDraft: RuleDraft;
   /** Server time as an ISO string, so server and client agree on what is upcoming. */
   nowIso: string;
 };
 
-export function ScheduleScreen({ rows, spots, timeZone, newDraft, nowIso }: Props) {
+export function ScheduleScreen({ rows, rules, spots, timeZone, newDraft, newRuleDraft, nowIso }: Props) {
   const now = new Date(nowIso);
   const [stop, setStop] = useState<StopEditing | null>(null);
   const [spot, setSpot] = useState<SpotEditing | null>(null);
+  const [rule, setRule] = useState<RuleEditing | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -52,17 +58,9 @@ export function ScheduleScreen({ rows, spots, timeZone, newDraft, nowIso }: Prop
     });
   }
 
-  function repeat(row: ScheduleRow) {
-    setError(null);
-    setBusyId(row.service.id);
-    startTransition(async () => {
-      const weeks = repeatWeeks(row.service, rows, timeZone, now);
-      const result = await repeatStop({ serviceId: row.service.id, weeks });
-      setBusyId(null);
-      if (!result.ok) return setError(result.error);
-      // A one-off note belongs to that day, not to the next one.
-      openStop({ draft: { ...result.draft, publicNote: "" }, repeated: true });
-    });
+  function openRule(next: Omit<RuleEditing, "key">) {
+    setOpened((n) => n + 1);
+    setRule({ ...next, key: `${opened}` });
   }
 
   function togglePublished(row: ScheduleRow) {
@@ -83,10 +81,8 @@ export function ScheduleScreen({ rows, spots, timeZone, newDraft, nowIso }: Prop
       now={now}
       isPast={isPast}
       busy={pending && busyId === row.service.id}
-      weeksAhead={repeatWeeks(row.service, rows, timeZone, now)}
       confirming={cancelling === row.service.id}
       onEdit={() => openStop({ draft: draftFromService(row.service, timeZone), row })}
-      onRepeat={() => repeat(row)}
       onTogglePublished={() => togglePublished(row)}
       onAskCancel={() => setCancelling(row.service.id)}
       onKeep={() => setCancelling(null)}
@@ -131,6 +127,37 @@ export function ScheduleScreen({ rows, spots, timeZone, newDraft, nowIso }: Prop
         </details>
       )}
 
+      <section className="mt-9" aria-labelledby="repeating-heading">
+        <div className="mb-2.5 flex items-baseline justify-between gap-4 px-1">
+          <h2 id="repeating-heading" className="text-[1.0625rem] font-semibold tracking-[-0.01em]">
+            Repeating
+          </h2>
+          <button
+            type="button"
+            onClick={() => openRule({ draft: newRuleDraft })}
+            className="rounded-sm text-[0.9375rem] font-medium text-brand underline-offset-4 outline-none hover:underline focus-visible:underline focus-visible:ring-4 focus-visible:ring-ring/40"
+          >
+            Add a repeating stop
+          </button>
+        </div>
+        {rules.length === 0 ? (
+          <p className="rounded-2xl bg-surface/60 px-4 py-6 text-center text-sm text-muted-foreground">
+            Trade the same hours every week? Set it up once here and the stops appear on their own.
+          </p>
+        ) : (
+          <ul className="divide-y divide-border overflow-hidden rounded-2xl bg-surface">
+            {rules.map((row) => (
+              <RuleRow
+                key={row.rule.id}
+                row={row}
+                onEdit={() => openRule({ draft: draftFromRule(row.rule), location: row.location })}
+                onError={setError}
+              />
+            ))}
+          </ul>
+        )}
+      </section>
+
       <section className="mt-9" aria-labelledby="spots-heading">
         <div className="mb-2.5 flex items-baseline justify-between gap-4 px-1">
           <h2 id="spots-heading" className="text-[1.0625rem] font-semibold tracking-[-0.01em]">
@@ -169,6 +196,7 @@ export function ScheduleScreen({ rows, spots, timeZone, newDraft, nowIso }: Prop
       </section>
 
       <StopSheet editing={stop} spots={spots} timeZone={timeZone} onClose={() => setStop(null)} />
+      <RuleSheet editing={rule} spots={spots} timeZone={timeZone} onClose={() => setRule(null)} />
       <SpotSheet editing={spot} onClose={() => setSpot(null)} />
     </div>
   );
@@ -189,10 +217,8 @@ function StopRow({
   now,
   isPast,
   busy,
-  weeksAhead,
   confirming,
   onEdit,
-  onRepeat,
   onTogglePublished,
   onAskCancel,
   onKeep,
@@ -203,10 +229,8 @@ function StopRow({
   now: Date;
   isPast: boolean;
   busy: boolean;
-  weeksAhead: number;
   confirming: boolean;
   onEdit: () => void;
-  onRepeat: () => void;
   onTogglePublished: () => void;
   onAskCancel: () => void;
   onKeep: () => void;
@@ -265,7 +289,6 @@ function StopRow({
           <Menu.Portal>
             <Menu.Positioner align="end" sideOffset={4} className="z-50">
               <Menu.Popup className="min-w-56 origin-(--transform-origin) rounded-2xl border border-border bg-popover p-1.5 text-popover-foreground outline-none transition-opacity data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none">
-                <MenuItem onClick={onRepeat}>{weeksAhead === 1 ? "Repeat next week" : `Repeat in ${weeksAhead} weeks`}</MenuItem>
                 {editable && (
                   <>
                     <MenuItem onClick={onEdit}>Edit</MenuItem>
@@ -328,6 +351,52 @@ function MenuItem({ children, onClick, destructive, disabled }: { children: Reac
     >
       {children}
     </Menu.Item>
+  );
+}
+
+// ─── Repeating stops ───────────────────────────────────────────────────────
+
+function RuleRow({ row, onEdit, onError }: { row: ScheduleRuleRow; onEdit: () => void; onError: (message: string | null) => void }) {
+  const { rule, location } = row;
+  const [pending, startTransition] = useTransition();
+
+  function toggle() {
+    onError(null);
+    startTransition(async () => {
+      const result = await setRuleActive({ ruleId: rule.id, active: !rule.active });
+      if (!result.ok) onError(result.error);
+    });
+  }
+
+  return (
+    <li className={cn("transition-opacity motion-reduce:transition-none", pending && "opacity-60")}>
+      <div className="flex items-center gap-1 py-1.5 pr-3 pl-4">
+        <button
+          type="button"
+          onClick={onEdit}
+          className="min-w-0 flex-1 rounded-xl py-2 pr-2 text-left outline-none focus-visible:bg-muted/70 focus-visible:ring-4 focus-visible:ring-ring/30"
+        >
+          <p className={cn("truncate font-semibold", !rule.active && "text-muted-foreground")}>{location.name}</p>
+          <p className="text-sm text-muted-foreground tabular-nums">
+            {weekdaysLabel(rule.weekdays)} · {rule.startTime} – {rule.endTime}
+          </p>
+        </button>
+
+        {/* A plain checkbox: the switch look is styling, the behaviour is native. */}
+        <label className="relative shrink-0 cursor-pointer p-1.5">
+          <input type="checkbox" checked={rule.active} disabled={pending} onChange={toggle} className="peer sr-only" />
+          <span
+            aria-hidden
+            className="block h-7 w-12 rounded-full bg-input transition-colors peer-checked:bg-ok peer-focus-visible:ring-4 peer-focus-visible:ring-ring/40 motion-reduce:transition-none"
+          />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute top-2.5 left-2.5 size-5 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5 motion-reduce:transition-none"
+          />
+          <span className="sr-only">{rule.active ? `Switch off repeating stop at ${location.name}` : `Switch on repeating stop at ${location.name}`}</span>
+        </label>
+      </div>
+    </li>
   );
 }
 

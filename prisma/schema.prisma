@@ -93,6 +93,7 @@ model Truck {
   invites     Invite[]
   locations   Location[]
   services    Service[]
+  rules       ScheduleRule[]
   menus       Menu[]
   menuItems   MenuItem[]
   dishPhotos  DishPhoto[]
@@ -150,11 +151,40 @@ model Location {
   lastUsedAt      DateTime? // bumped when a Service is scheduled here; orders "your spots"
   archivedAt      DateTime? // soft delete: a Service may reference this spot
 
-  truck    Truck     @relation(fields: [truckId], references: [id], onDelete: Cascade)
+  truck    Truck          @relation(fields: [truckId], references: [id], onDelete: Cascade)
   services Service[]
+  rules    ScheduleRule[]
 
   @@index([truckId])
   @@index([truckId, provider, providerPlaceId])
+}
+
+/// A standing commitment: this spot, these weekdays, these hours, until switched
+/// off. The generator turns it into real Service rows a fortnight ahead, because
+/// orders and pickup slots hang off a Service. Times are wall-clock in the
+/// truck's timezone ("11:00", not an instant), so 11am stays 11am across a
+/// daylight-saving change.
+model ScheduleRule {
+  id                  String   @id @default(cuid())
+  truckId             String
+  locationId          String
+  weekdays            Int[] // 0 = Sunday … 6 = Saturday, as the truck's zone sees the date
+  startTime           String // "HH:mm"
+  endTime             String // "HH:mm", later the same day
+  opensHoursBefore    Int
+  closesMinutesBefore Int
+  slotMinutes         Int
+  ordersPerSlot       Int
+  publicNote          String   @default("")
+  active              Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  truck    Truck     @relation(fields: [truckId], references: [id], onDelete: Cascade)
+  location Location  @relation(fields: [locationId], references: [id])
+  services Service[]
+
+  @@index([truckId])
 }
 
 // One truck, at one location, from one time to another.
@@ -172,15 +202,22 @@ model Service {
   status           ServiceStatus @default(DRAFT)
   orderCount       Int           @default(0) // incremented atomically to hand out order numbers
   publicNote       String        @default("") // one-off note for this stop only ("cash only today")
+  // Set when a ScheduleRule generated this stop. ruleDateKey is the local date
+  // it covers ("2026-11-10"); the unique pair is what makes generating twice a
+  // no-op, and what stops a cancelled Tuesday being resurrected next run.
+  ruleId           String?
+  ruleDateKey      String?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
-  truck       Truck        @relation(fields: [truckId], references: [id], onDelete: Cascade)
-  location    Location     @relation(fields: [locationId], references: [id])
-  menu        Menu         @relation(fields: [menuId], references: [id])
+  truck       Truck         @relation(fields: [truckId], references: [id], onDelete: Cascade)
+  location    Location      @relation(fields: [locationId], references: [id])
+  menu        Menu          @relation(fields: [menuId], references: [id])
+  rule        ScheduleRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
   pickupSlots PickupSlot[]
   orders      Order[]
 
+  @@unique([ruleId, ruleDateKey])
   @@index([truckId, startsAt])
 }
 

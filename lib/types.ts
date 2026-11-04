@@ -228,6 +228,31 @@ export type PendingInvite = {
 /** A stop on the vendor's schedule, with how many live orders hang off it. */
 export type ScheduleRow = { service: Service; location: Location; orderCount: number };
 
+/** A standing commitment that generates stops: see lib/schedule/rules.ts. */
+export type ScheduleRule = {
+  id: string;
+  locationId: string;
+  weekdays: number[]; // 0 = Sunday … 6 = Saturday
+  startTime: string; // "HH:mm" in the truck's timezone
+  endTime: string;
+  opensHoursBefore: number;
+  closesMinutesBefore: number;
+  slotMinutes: number;
+  ordersPerSlot: number;
+  publicNote: string;
+  active: boolean;
+};
+
+export type ScheduleRuleRow = { rule: ScheduleRule; location: Location };
+
+/** The repeating-stop form's values. Same vocabulary as StopDraft, minus the date. */
+export type ScheduleRuleInput = Omit<ScheduleRule, "id">;
+
+export type RuleDraft = Omit<ScheduleRule, "id" | "active"> & {
+  ruleId?: string; // present = editing that rule
+  locationId: string;
+};
+
 /** The stop form's values, in the wall-clock terms its inputs speak (the truck's timezone). */
 export type StopDraft = {
   serviceId?: string; // present = editing that stop

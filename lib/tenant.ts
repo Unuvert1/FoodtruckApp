@@ -24,6 +24,9 @@ import type {
   PendingInvite,
   PickupSlot,
   ScheduleRow,
+  ScheduleRule,
+  ScheduleRuleInput,
+  ScheduleRuleRow,
   Service,
   TeamMember,
   TodaysNumbers,
@@ -87,6 +90,22 @@ function toTruckSettings(row: TruckRow): TruckSettings {
     archivedAt: row.archivedAt?.toISOString() ?? null,
     stripeAccountId: row.stripeAccountId,
     stripeOnboarded: row.stripeOnboarded,
+  };
+}
+
+function toRule(row: Prisma.ScheduleRuleGetPayload<object>): ScheduleRule {
+  return {
+    id: row.id,
+    locationId: row.locationId,
+    weekdays: row.weekdays,
+    startTime: row.startTime,
+    endTime: row.endTime,
+    opensHoursBefore: row.opensHoursBefore,
+    closesMinutesBefore: row.closesMinutesBefore,
+    slotMinutes: row.slotMinutes,
+    ordersPerSlot: row.ordersPerSlot,
+    publicNote: row.publicNote,
+    active: row.active,
   };
 }
 
@@ -615,6 +634,14 @@ export async function getServiceOrders(truckId: string, serviceId: string): Prom
 
 /** READY → PICKED_UP for anything ready longer than AUTO_COMPLETE_AFTER_MINUTES. */
 /**
+ * Every trading truck, for the cron to walk. Not tenant-scoped for the same
+ * reason as the sweep below: the caller is a schedule, not a signed-in vendor.
+ */
+export async function getTrucksForMaintenance(): Promise<{ id: string; timezone: string }[]> {
+  return prisma.truck.findMany({ where: { archivedAt: null }, select: { id: true, timezone: true } });
+}
+
+/**
  * The same sweep, for every truck at once. Not tenant-scoped, because the
  * caller is the cron route rather than a signed-in vendor: nobody is looking
  * at a dashboard when this runs, which is the whole reason it exists.
@@ -969,6 +996,97 @@ export type ServiceTimesInput = {
 };
 
 /** Always a new row, with orderCount at its default of 0: that column is the order-number sequence. */
+// ─── Repeating stops ───────────────────────────────────────────────────────
+
+export async function getScheduleRules(truckId: string): Promise<ScheduleRuleRow[]> {
+  const rows = await prisma.scheduleRule.findMany({
+    where: { truckId },
+    include: { location: true },
+    orderBy: [{ active: "desc" }, { startTime: "asc" }],
+  });
+  return rows.map((r) => ({ rule: toRule(r), location: toLocation(r.location) }));
+}
+
+export async function getScheduleRule(truckId: string, ruleId: string): Promise<ScheduleRule | null> {
+  const row = await prisma.scheduleRule.findFirst({ where: { id: ruleId, truckId } });
+  return row ? toRule(row) : null;
+}
+
+/** Every active rule, for the generator. */
+export async function getActiveScheduleRules(truckId: string): Promise<ScheduleRule[]> {
+  const rows = await prisma.scheduleRule.findMany({ where: { truckId, active: true } });
+  return rows.map(toRule);
+}
+
+export async function createScheduleRule(truckId: string, input: ScheduleRuleInput): Promise<string> {
+  const row = await prisma.scheduleRule.create({ data: { ...input, truckId }, select: { id: true } });
+  return row.id;
+}
+
+export async function updateScheduleRule(truckId: string, ruleId: string, input: ScheduleRuleInput): Promise<boolean> {
+  const { count } = await prisma.scheduleRule.updateMany({ where: { id: ruleId, truckId }, data: input });
+  return count === 1;
+}
+
+export async function setScheduleRuleActive(truckId: string, ruleId: string, active: boolean): Promise<boolean> {
+  const { count } = await prisma.scheduleRule.updateMany({ where: { id: ruleId, truckId }, data: { active } });
+  return count === 1;
+}
+
+/** The local dates this rule has already put on the calendar, cancelled ones included. */
+export async function getRuleDateKeys(truckId: string, ruleId: string, from: string): Promise<string[]> {
+  const rows = await prisma.service.findMany({
+    where: { truckId, ruleId, ruleDateKey: { gte: from } },
+    select: { ruleDateKey: true },
+  });
+  return rows.flatMap((r) => (r.ruleDateKey ? [r.ruleDateKey] : []));
+}
+
+/**
+ * One generated stop. The unique pair (ruleId, ruleDateKey) is the safety net:
+ * two generator runs racing each other cannot produce two stops for a Tuesday,
+ * the second simply loses. That is why the conflict is swallowed rather than
+ * reported.
+ */
+export async function createRuleStop(
+  truckId: string,
+  ruleId: string,
+  ruleDateKey: string,
+  data: ServiceTimesInput & { menuId: string },
+  slots: SlotSpec[]
+): Promise<boolean> {
+  try {
+    await prisma.service.create({
+      data: { ...data, truckId, ruleId, ruleDateKey, pickupSlots: { create: slots } },
+      select: { id: true },
+    });
+    return true;
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return false;
+    throw error;
+  }
+}
+
+/**
+ * Switching a rule off clears the stops it put on the calendar that nobody has
+ * booked. Anything with an order stays exactly where it is: a customer is
+ * holding a pickup time for it, and a stop with orders is cancelled, never
+ * deleted (Order.service is Restrict).
+ */
+export async function removeUnbookedRuleStops(truckId: string, ruleId: string, now: Date): Promise<number> {
+  const doomed = await prisma.service.findMany({
+    where: { truckId, ruleId, startsAt: { gt: now }, orders: { none: {} } },
+    select: { id: true },
+  });
+  if (doomed.length === 0) return 0;
+  const ids = doomed.map((s) => s.id);
+  return prisma.$transaction(async (tx) => {
+    await tx.pickupSlot.deleteMany({ where: { serviceId: { in: ids } } });
+    const { count } = await tx.service.deleteMany({ where: { id: { in: ids }, truckId, orders: { none: {} } } });
+    return count;
+  });
+}
+
 export async function createServiceWithSlots(
   tx: Tx,
   truckId: string,

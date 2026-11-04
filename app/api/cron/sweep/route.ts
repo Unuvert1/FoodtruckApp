@@ -1,15 +1,18 @@
-// Finishes orders nobody closed by hand.
+// The daily housekeeping run: the two jobs that have to happen whether or not
+// anyone has a dashboard open.
 //
-// A READY order self-advances to PICKED_UP after 30 minutes, but that sweep has
-// only ever run when someone loaded the dashboard — so a vendor who shuts their
-// laptop leaves orders stuck on READY forever. This endpoint is the version
-// that runs with nobody watching.
+//   1. Finish orders nobody closed by hand. A READY order self-advances to
+//      PICKED_UP after 30 minutes, but that sweep has only ever run on a page
+//      load, so a vendor who shuts their laptop leaves orders stuck on READY.
+//   2. Extend repeating stops, so the calendar always runs a fortnight ahead.
+//      Opening Schedule does this too; this is what covers the weeks nobody does.
 //
 // Vercel Cron sends `Authorization: Bearer $CRON_SECRET` when that variable is
 // set on the project. Without the variable the route stays closed, so an
 // unconfigured deploy cannot have its data swept by a passer-by.
 
-import { sweepAllAutoCompleted } from "@/lib/tenant";
+import { materializeScheduleRules } from "@/lib/schedule/materialize";
+import { getTrucksForMaintenance, sweepAllAutoCompleted } from "@/lib/tenant";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +24,18 @@ export async function GET(request: Request) {
     return new Response("Not authorised.", { status: 401 });
   }
 
-  const completed = await sweepAllAutoCompleted(new Date());
-  return Response.json({ completed });
+  const now = new Date();
+  const completed = await sweepAllAutoCompleted(now);
+
+  let scheduled = 0;
+  for (const truck of await getTrucksForMaintenance()) {
+    // One truck's rules failing must not stop the rest of the run.
+    try {
+      scheduled += await materializeScheduleRules(truck.id, truck.timezone, now);
+    } catch (error) {
+      console.error("[cron] couldn't extend the schedule for truck", truck.id, error);
+    }
+  }
+
+  return Response.json({ completed, scheduled });
 }
