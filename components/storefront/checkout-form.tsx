@@ -155,6 +155,13 @@ export function CheckoutForm({ truck, service, location, menu, slots }: Props) {
         <p className="mt-2 text-[0.9375rem] text-muted-foreground">
           Pickup from {truck.name} at {location.name}, {formatDayLabel(service.startsAt, tz).toLowerCase()}.
         </p>
+        {/* The vendor's note for this stop (e.g. "cash only today"), so it is seen before paying. */}
+        {service.publicNote.trim() && (
+          <p className="mt-3 rounded-2xl bg-surface px-4 py-3 text-sm font-medium break-words">
+            <span className="sr-only">Note from the truck: </span>
+            {service.publicNote.trim()}
+          </p>
+        )}
       </header>
 
       {removedNames.length > 0 && (
