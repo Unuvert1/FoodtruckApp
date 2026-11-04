@@ -614,6 +614,20 @@ export async function getServiceOrders(truckId: string, serviceId: string): Prom
 }
 
 /** READY → PICKED_UP for anything ready longer than AUTO_COMPLETE_AFTER_MINUTES. */
+/**
+ * The same sweep, for every truck at once. Not tenant-scoped, because the
+ * caller is the cron route rather than a signed-in vendor: nobody is looking
+ * at a dashboard when this runs, which is the whole reason it exists.
+ */
+export async function sweepAllAutoCompleted(now: Date): Promise<number> {
+  const cutoff = new Date(now.getTime() - AUTO_COMPLETE_AFTER_MINUTES * 60_000);
+  const { count } = await prisma.order.updateMany({
+    where: { status: "READY", readyAt: { lte: cutoff } },
+    data: { status: "PICKED_UP", pickedUpAt: now, autoCompletedAt: now },
+  });
+  return count;
+}
+
 export async function sweepAutoCompleted(
   truckId: string,
   opts: { serviceId?: string; now: Date }
