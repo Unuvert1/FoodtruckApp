@@ -15,7 +15,12 @@ export default async function ServicePage({ searchParams }: Props) {
   const { service: serviceParam } = await searchParams;
 
   const now = new Date();
-  const { services, locations } = await getDashboardServices(truck.id, now);
+  // The day's takings never depend on a stop: a counter sale belongs to no
+  // service, so this is read before the no-stops branch, not after it.
+  const [{ services, locations }, today] = await Promise.all([
+    getDashboardServices(truck.id, now),
+    getTodaysNumbers(truck.id, truck.timezone, now),
+  ]);
   const selected =
     services.find((s) => s.id === serviceParam) ?? services.find((s) => isHappeningNow(s, now)) ?? services[0];
 
@@ -33,14 +38,16 @@ export default async function ServicePage({ searchParams }: Props) {
         >
           Go to Schedule
         </Link>
+        <div className="mt-8 max-w-[40rem]">
+          <TodaysNumbers numbers={today} timeZone={truck.timezone} />
+        </div>
       </main>
     );
   }
 
-  const [orders, menu, today] = await Promise.all([
+  const [orders, menu] = await Promise.all([
     getServiceOrders(truck.id, selected.id),
     getManagedMenu(truck.id),
-    getTodaysNumbers(truck.id, truck.timezone, now),
   ]);
   const stockSections = (menu?.sections ?? [])
     .map((s) => ({ ...s, items: s.items.filter((i) => !i.archived) }))
