@@ -30,7 +30,7 @@ import type {
   TruckSettings,
 } from "@/lib/types";
 import type { PricingItem } from "@/lib/pricing";
-import { formatOrderNumber } from "@/lib/orders/order-number";
+import { formatCounterNumber, formatOrderNumber } from "@/lib/orders/order-number";
 import { closesMinutesBeforeOf, opensHoursBeforeOf } from "@/lib/schedule/ordering-window";
 import type { ExistingSlot, SlotPlan, SlotSpec } from "@/lib/schedule/slots";
 
@@ -394,6 +394,33 @@ export async function nextOrderNumber(tx: Tx, truckId: string, serviceId: string
     select: { orderCount: true },
   });
   return formatOrderNumber(orderCount);
+}
+
+/**
+ * The same, for a counter sale, which has no service to count against. The
+ * atomic increment is the only thing keeping these unique: once serviceId is
+ * NULL, @@unique([serviceId, orderNumber]) stops applying, because Postgres
+ * treats NULLs as distinct from each other.
+ */
+export async function nextCounterOrderNumber(tx: Tx, truckId: string): Promise<string> {
+  const { counterSeq } = await tx.truck.update({
+    where: { id: truckId },
+    data: { counterSeq: { increment: 1 } },
+    select: { counterSeq: true },
+  });
+  return formatCounterNumber(counterSeq);
+}
+
+/**
+ * Tax and fee rates for a counter sale. getOrderingContext reads these through
+ * service.truck, which a walk-up has no path to; there is also no ordering
+ * window to check, because the customer is standing at the window.
+ */
+export async function getCounterPricingContext(tx: Tx, truckId: string) {
+  return tx.truck.findUnique({
+    where: { id: truckId, archivedAt: null },
+    select: { taxRateBps: true, platformFeeBps: true },
+  });
 }
 
 export async function insertOrder(

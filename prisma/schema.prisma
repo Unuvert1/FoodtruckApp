@@ -43,6 +43,13 @@ enum OrderSource {
   COUNTER // rung up at the window on the POS; no pickup slot
 }
 
+/// How a counter sale was paid. A web order has none: Stripe handled it.
+enum TenderType {
+  CASH
+  CARD
+  OTHER
+}
+
 model Truck {
   id                   String  @id @default(cuid())
   slug                 String  @unique
@@ -57,6 +64,11 @@ model Truck {
   stripeOnboarded      Boolean @default(false)
   taxRateBps           Int     @default(0)
   platformFeeBps       Int     @default(250)
+  // Hands out counter-sale order numbers ("C-1", "C-2") with an atomic
+  // increment, the way Service.orderCount does for a stop's orders. A counter
+  // sale has no Service to count against, and @@unique([serviceId,
+  // orderNumber]) stops applying once serviceId is NULL.
+  counterSeq           Int     @default(0)
   customDomain         String? @unique
   notificationEmail    String? // where vendor emails go
   archivedAt           DateTime? // the truck is closed; nothing is ever hard-deleted
@@ -304,6 +316,7 @@ model Order {
   autoCompletedAt         DateTime? // set by the 30-minute READY sweep, not by a human tap
   refundedCents           Int         @default(0) // sum of voided line items; no money has moved yet
   source                  OrderSource @default(WEB)
+  tender                  TenderType? // counter sales only: how it was paid
   updatedAt               DateTime    @updatedAt
 
   truck      Truck           @relation(fields: [truckId], references: [id], onDelete: Cascade)

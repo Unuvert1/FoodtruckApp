@@ -95,6 +95,9 @@ export type Menu = {
 
 // ─── Orders ────────────────────────────────────────────────────────────────
 
+/** How a counter sale was paid. A web order has none: Stripe handled it. */
+export type TenderType = "CASH" | "CARD" | "OTHER";
+
 export type OrderStatus =
   | "PENDING_PAYMENT"
   | "PAID"
