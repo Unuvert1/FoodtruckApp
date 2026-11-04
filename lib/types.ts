@@ -98,6 +98,17 @@ export type Menu = {
 /** How a counter sale was paid. A web order has none: Stripe handled it. */
 export type TenderType = "CASH" | "CARD" | "OTHER";
 
+/** The day so far, in the truck's own timezone. Counts web orders and counter sales alike. */
+export type TodaysNumbers = {
+  orderCount: number;
+  netCents: number; // taken, less anything voided back
+  counterCents: number;
+  onlineCents: number;
+  cashCents: number;
+  topItems: { name: string; quantity: number }[];
+  busiestSlot: { startsAt: Date; count: number } | null;
+};
+
 export type OrderStatus =
   | "PENDING_PAYMENT"
   | "PAID"

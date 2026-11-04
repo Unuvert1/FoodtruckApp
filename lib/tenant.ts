@@ -26,12 +26,14 @@ import type {
   ScheduleRow,
   Service,
   TeamMember,
+  TodaysNumbers,
   Truck,
   TruckSettings,
 } from "@/lib/types";
 import type { PricingItem } from "@/lib/pricing";
 import { formatCounterNumber, formatOrderNumber } from "@/lib/orders/order-number";
 import { closesMinutesBeforeOf, opensHoursBeforeOf } from "@/lib/schedule/ordering-window";
+import { zonedDayRange } from "@/lib/time";
 import type { ExistingSlot, SlotPlan, SlotSpec } from "@/lib/schedule/slots";
 
 type Tx = Prisma.TransactionClient;
@@ -409,6 +411,75 @@ export async function nextCounterOrderNumber(tx: Tx, truckId: string): Promise<s
     select: { counterSeq: true },
   });
   return formatCounterNumber(counterSeq);
+}
+
+/**
+ * The day's trading so far, for the summary strip on the Service screen.
+ *
+ * "Today" is the truck's own day, not UTC's: a stop that runs to 11pm in
+ * Chicago is still today, though UTC has already rolled over. One day of one
+ * truck's orders is small, so the aggregation happens here rather than in SQL,
+ * which keeps the void and refund rules in one readable place.
+ */
+export async function getTodaysNumbers(truckId: string, timeZone: string, now: Date): Promise<TodaysNumbers> {
+  const { startsAt, endsAt } = zonedDayRange(timeZone, now);
+
+  const orders = await prisma.order.findMany({
+    where: {
+      truckId,
+      placedAt: { gte: startsAt, lt: endsAt },
+      // An unpaid order is not money, and a cancelled one was given back.
+      status: { notIn: ["PENDING_PAYMENT", "CANCELLED"] },
+    },
+    select: {
+      totalCents: true,
+      refundedCents: true,
+      source: true,
+      tender: true,
+      pickupSlot: { select: { startsAt: true } },
+      lineItems: { where: { voidedAt: null }, select: { nameSnapshot: true, quantity: true } },
+    },
+  });
+
+  let netCents = 0;
+  let counterCents = 0;
+  let onlineCents = 0;
+  let cashCents = 0;
+  const sold = new Map<string, number>();
+  const perSlot = new Map<number, number>();
+
+  for (const order of orders) {
+    const net = order.totalCents - order.refundedCents;
+    netCents += net;
+    if (order.source === "COUNTER") counterCents += net;
+    else onlineCents += net;
+    if (order.tender === "CASH") cashCents += net;
+
+    for (const line of order.lineItems) {
+      sold.set(line.nameSnapshot, (sold.get(line.nameSnapshot) ?? 0) + line.quantity);
+    }
+    if (order.pickupSlot) {
+      const key = order.pickupSlot.startsAt.getTime();
+      perSlot.set(key, (perSlot.get(key) ?? 0) + 1);
+    }
+  }
+
+  const topItems = [...sold.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 3)
+    .map(([name, quantity]) => ({ name, quantity }));
+
+  const busiest = [...perSlot.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0];
+
+  return {
+    orderCount: orders.length,
+    netCents,
+    counterCents,
+    onlineCents,
+    cashCents,
+    topItems,
+    busiestSlot: busiest ? { startsAt: new Date(busiest[0]), count: busiest[1] } : null,
+  };
 }
 
 /**

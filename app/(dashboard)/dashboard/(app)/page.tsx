@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { getDashboardServices, getManagedMenu, getServiceOrders, requireTruckAccess } from "@/lib/tenant";
+import { getDashboardServices, getManagedMenu, getServiceOrders, getTodaysNumbers, requireTruckAccess } from "@/lib/tenant";
 import { isHappeningNow } from "@/lib/service";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { ServiceScreen } from "@/components/dashboard/service-screen";
+import { TodaysNumbers } from "@/components/dashboard/todays-numbers";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Service" };
@@ -36,7 +37,11 @@ export default async function ServicePage({ searchParams }: Props) {
     );
   }
 
-  const [orders, menu] = await Promise.all([getServiceOrders(truck.id, selected.id), getManagedMenu(truck.id)]);
+  const [orders, menu, today] = await Promise.all([
+    getServiceOrders(truck.id, selected.id),
+    getManagedMenu(truck.id),
+    getTodaysNumbers(truck.id, truck.timezone, now),
+  ]);
   const stockSections = (menu?.sections ?? [])
     .map((s) => ({ ...s, items: s.items.filter((i) => !i.archived) }))
     .filter((s) => s.items.length > 0);
@@ -50,6 +55,7 @@ export default async function ServicePage({ searchParams }: Props) {
         selectedId={selected.id}
         orders={orders}
         stockSections={stockSections}
+        today={<TodaysNumbers numbers={today} timeZone={truck.timezone} />}
       />
       <AutoRefresh seconds={10} />
     </>

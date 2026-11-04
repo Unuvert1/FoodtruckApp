@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDaysToDateKey, toZonedDateInput, toZonedTimeInput, zonedTimeFromParts } from "@/lib/time";
+import { addDaysToDateKey, toZonedDateInput, toZonedTimeInput, zonedDayRange, zonedTimeFromParts } from "@/lib/time";
 
 const CHICAGO = "America/Chicago";
 
@@ -37,5 +37,28 @@ describe("addDaysToDateKey", () => {
   it("adds across month and year ends", () => {
     expect(addDaysToDateKey("2026-10-30", 7)).toBe("2026-11-06");
     expect(addDaysToDateKey("2026-12-28", 7)).toBe("2027-01-04");
+  });
+});
+
+describe("zonedDayRange", () => {
+  it("brackets the truck's own day, not UTC's", () => {
+    // 01:30 UTC on the 5th is still the evening of the 4th in Chicago.
+    const { startsAt, endsAt } = zonedDayRange(CHICAGO, new Date("2026-11-05T01:30:00Z"));
+    expect(startsAt.toISOString()).toBe("2026-11-04T06:00:00.000Z");
+    expect(endsAt.toISOString()).toBe("2026-11-05T06:00:00.000Z");
+  });
+
+  it("is half-open, so an order at midnight lands in exactly one day", () => {
+    const midnight = zonedTimeFromParts(CHICAGO, "2026-11-04", "00:00");
+    const before = zonedDayRange(CHICAGO, new Date(midnight.getTime() - 1));
+    const after = zonedDayRange(CHICAGO, midnight);
+    expect(before.endsAt.getTime()).toBe(after.startsAt.getTime());
+    expect(midnight.getTime()).toBeGreaterThanOrEqual(after.startsAt.getTime());
+    expect(midnight.getTime()).toBeLessThan(after.endsAt.getTime());
+  });
+
+  it("stretches to 25 hours on the day the clocks go back", () => {
+    const { startsAt, endsAt } = zonedDayRange(CHICAGO, new Date("2026-11-01T12:00:00Z"));
+    expect((endsAt.getTime() - startsAt.getTime()) / 3_600_000).toBe(25);
   });
 });
