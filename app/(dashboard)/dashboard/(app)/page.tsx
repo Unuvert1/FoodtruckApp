@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getDashboardServices, getManagedMenu, getServiceOrders, requireTruckAccess } from "@/lib/tenant";
 import { isHappeningNow } from "@/lib/service";
 import { AutoRefresh } from "@/components/auto-refresh";
@@ -22,9 +23,15 @@ export default async function ServicePage({ searchParams }: Props) {
       <main className="mx-auto max-w-7xl px-4 py-12">
         <h1 className="text-[1.75rem] font-semibold tracking-[-0.02em]">No stops scheduled</h1>
         <p className="mt-3 max-w-prose text-muted-foreground">
-          Orders show up here once you have a stop on the schedule. Scheduling stops from the dashboard is coming
-          next. Meanwhile you can set up your menu.
+          Orders show up here once you have a stop on the schedule. Add one and publish it, and this screen becomes
+          your queue for the day.
         </p>
+        <Link
+          href="/dashboard/schedule"
+          className="mt-4 inline-flex h-12 items-center rounded-xl bg-foreground px-5 text-[1.0625rem] font-bold text-background outline-none focus-visible:ring-4 focus-visible:ring-foreground/30"
+        >
+          Go to Schedule
+        </Link>
       </main>
     );
   }
