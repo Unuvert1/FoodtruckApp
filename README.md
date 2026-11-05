@@ -2,7 +2,9 @@
 
 **White-label pre-ordering platform for food trucks.** Each truck gets its own branded ordering site. Customers reserve a pickup window and pay ahead; vendors manage their menu, stock, locations, and schedule from a dashboard.
 
-> **Status:** in development. The customer storefront, vendor dashboard, login, and order emails work against a real database. Payments (Stripe) aren't wired up yet, so orders are marked paid without charging.
+> **Live demo:** https://foodtruck-app-one.vercel.app (try the demo truck at [/demo-truck](https://foodtruck-app-one.vercel.app/demo-truck))
+>
+> **Status:** in development. The customer storefront, vendor dashboard, login, order emails, and Stripe payments (test mode only, no real money moves) work against a real database. The site is deployed on Vercel. Pay with the test card `4242 4242 4242 4242`, any future expiry, any CVC.
 
 ---
 
@@ -42,7 +44,7 @@ That line is the real cost. A truck does 80–200 orders in a ~90-minute lunch r
 | Styling | Tailwind CSS, shadcn/ui |
 | Database | Postgres (Supabase), Prisma |
 | Auth | Clerk (vendors only — customers check out as guests) |
-| Payments | Stripe Connect Express + Stripe Checkout |
+| Payments | Stripe Checkout (test mode). Stripe Connect payouts to trucks are planned, not built yet |
 | Storage / Email | Vercel Blob, Resend |
 | Hosting | Vercel |
 
@@ -108,14 +110,62 @@ RESEND_API_KEY=                        # optional; without it, emails print to t
 EMAIL_FROM=                            # optional; defaults to Resend's test sender
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ALLOW_DEMO_TRUCK_JOIN=                 # "true" to offer the demo truck outside development
-STRIPE_SECRET_KEY=                     # test mode: sk_test_... (Stream C)
-STRIPE_WEBHOOK_SECRET=                 # printed by `stripe listen` (Stream C)
+STRIPE_SECRET_KEY=                     # test mode: sk_test_...; blank = no payment page, orders are marked paid (local dev only)
+STRIPE_WEBHOOK_SECRET=                 # whsec_...; from `stripe listen` locally, or the webhook endpoint's signing secret on Vercel
 BLOB_READ_WRITE_TOKEN=
 ```
 
 `.env.example` has the same list with notes on where to find each value.
 
 `.env.local` is gitignored and must never be committed. Each developer uses their own Stripe test keys so webhook events don't cross.
+
+---
+
+## Deploying to Vercel
+
+The live site runs on Vercel (Hobby plan) at https://foodtruck-app-one.vercel.app. Every push to `main` deploys automatically. The build runs `npm run vercel-build`, which applies any new database migrations (`prisma migrate deploy`) and then builds the app, so a schema change reaches the live database when it deploys.
+
+**First-time setup**
+
+1. In Vercel, **Add New → Project**, import the GitHub repo, and keep the Next.js defaults.
+2. Add the environment variables below (**Settings → Environment Variables**), then redeploy. Vercel only picks up new variables on a new deploy.
+3. In Vercel, **Settings → Deployment Protection**, turn protection off for the production domain. If it is on, visitors are sent to a Vercel login page.
+4. In Clerk, add the Vercel address to the allowed domains so vendor sign-in works on the live site.
+5. In Stripe (test mode), go to **Developers → Webhooks → Add endpoint**. Use `https://foodtruck-app-one.vercel.app/api/webhooks/stripe` and the events `checkout.session.completed`, `checkout.session.expired`, and `checkout.session.async_payment_succeeded`. Copy the endpoint's signing secret into `STRIPE_WEBHOOK_SECRET`.
+6. Seed the demo data (see below).
+
+**Environment variables on Vercel**
+
+| Variable | Needed? | Notes |
+|---|---|---|
+| `DATABASE_URL` | Required | Supabase transaction pooler (port 6543) |
+| `DIRECT_URL` | Required | Supabase session pooler (port 5432), used for migrations |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Required | Clerk development keys are fine for class |
+| `CLERK_SECRET_KEY` | Required | |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | Required | `/sign-in` |
+| `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | Required | `/sign-up` |
+| `NEXT_PUBLIC_APP_URL` | Required | The live address, `https://foodtruck-app-one.vercel.app` |
+| `STRIPE_SECRET_KEY` | Required for payments | Test key (`sk_test_...`). If it is missing, orders skip payment and are marked paid for free |
+| `STRIPE_WEBHOOK_SECRET` | Required for payments | Without it, paid orders never leave "Confirming your payment" |
+| `CRON_SECRET` | Required for the daily cleanup | Any long random string. Vercel sends it to `/api/cron/sweep` (set in `vercel.json`, runs once a day) to close orders left on Ready. Without it the route stays closed |
+| `ALLOW_DEMO_TRUCK_JOIN` | Optional | `true` lets a signed-in user manage the demo truck on the live site |
+| `RESEND_API_KEY` | Optional | Without it, order emails are not sent |
+| `EMAIL_FROM` | Optional | Defaults to Resend's test sender |
+| `BLOB_READ_WRITE_TOKEN` | Optional | Only needed once image uploads are built |
+
+Do not set `DEV_AUTH_BYPASS` on Vercel (it is ignored in production builds anyway).
+
+**Seeding the live database.** Run this on your own computer with the live database's connection strings. It rebuilds the demo truck's menu, stops, and orders (including any test orders), so only run it on purpose:
+
+```bash
+DATABASE_URL="<live pooler url>" DIRECT_URL="<live session url>" npx prisma db seed
+```
+
+**Good to know**
+
+- Supabase's free plan pauses the database after a week without use. If the live site shows errors, open the Supabase dashboard and restore the project.
+- Stripe is in test mode, so no real card works and no real money moves. Refunds are not built.
+- A test order that is never paid expires after about 30 minutes and frees its pickup slot.
 
 ---
 
