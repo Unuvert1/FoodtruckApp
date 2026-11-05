@@ -22,17 +22,21 @@ of this date and get refreshed at sprint close.
 
 | Metric | Count |
 |---|---|
-| Issues in the sprint | 12 |
+| Issues in the sprint | 16 |
 | Issues completed | 4 |
-| Issues in progress | 1 |
+| Issues in progress | 5 |
 | Issues not started | 7 |
-| Issues added mid-sprint | 0 |
+| Issues added mid-sprint | 4 |
 
-All twelve issues were planned before the sprint was set up: ten new tickets
-(FPS-56 to FPS-61 and FPS-63 to FPS-66) plus two carried over from Sprint 3
-(FPS-30, Vercel hosting, and FPS-45, the stop note at checkout). FPS-62 was never
-used. The Stripe tickets (FPS-63 to FPS-66) were added once it was clear that
-payments were the largest feature still unbuilt.
+Twelve issues were planned when the sprint was set up: ten new tickets (FPS-56 to
+FPS-61 and FPS-63 to FPS-66) plus two carried over from Sprint 3 (FPS-30, Vercel
+hosting, and FPS-45, the stop note at checkout). FPS-62 was never used. The Stripe
+tickets (FPS-63 to FPS-66) were added once it was clear that payments were the
+largest feature still unbuilt.
+
+Four issues were added on Nov 4 (FPS-67 to FPS-70). They are Unubileg's vendor-side
+work, which was built on a branch before it had tickets: counter sales, "Today's
+numbers", the daily cleanup job, and the payments page and dependency clean-up.
 
 ---
 
@@ -40,8 +44,8 @@ payments were the largest feature still unbuilt.
 
 | Type | To Do | In Progress | Done |
 |---|---|---|---|
-| Story | 0 | 0 | 4 |
-| Task | 7 | 1 | 0 |
+| Story | 0 | 2 | 4 |
+| Task | 7 | 3 | 0 |
 | Bug | 0 | 0 | 0 |
 
 ---
@@ -50,12 +54,12 @@ payments were the largest feature still unbuilt.
 
 | Student | Issues Assigned | Issues Completed |
 |---|---|---|
-| Unubileg (Vercel hosting, live database, login, Stripe keys) | 5 | 0 |
+| Unubileg (Vercel hosting, live database, login, Stripe keys, POS, dashboard, cron) | 9 | 0 |
 | Jovanni Maya (customer checkout, payments, live-site testing) | 7 | 4 |
 
 Work was split by surface again. Unubileg owns the hosting and the accounts it
 needs (Vercel, Supabase, Clerk, Stripe dashboard): FPS-30, FPS-56, FPS-57, FPS-58
-and FPS-66. Jovanni owns the code and testing on the customer side: FPS-45,
+and FPS-66, plus the vendor-side code in FPS-67 to FPS-70. Jovanni owns the code and testing on the customer side: FPS-45,
 FPS-63, FPS-64, FPS-65 (all done) and FPS-59, FPS-60, FPS-61 (waiting on the live
 site).
 
@@ -70,13 +74,15 @@ merge conflicts.
 
 | Metric | Value |
 |---|---|
-| Total story points in the sprint | 23 |
+| Total story points in the sprint | 31 |
 | Story points completed | 9 |
-| Completion % | 39% |
+| Completion % | 29% |
 
-Per person, completed: Unubileg 0 of 10, Jovanni 9 of 13. This is an early-sprint
-snapshot: the remaining 14 points are mostly hosting setup, which has to happen
-before the live-site testing (FPS-59, FPS-60) and the README (FPS-61) can start.
+Per person, completed: Unubileg 0 of 18, Jovanni 9 of 13. This is an early-sprint
+snapshot. Another 8 of Unubileg's points (FPS-67 to FPS-70) are built on a branch
+but not merged, so they are In Progress and not counted as completed. The other
+14 points are mostly hosting setup, which has to happen before the live-site
+testing (FPS-59, FPS-60) and the README (FPS-61) can start.
 
 ---
 
@@ -115,14 +121,14 @@ before the live-site testing (FPS-59, FPS-60) and the README (FPS-61) can start.
   refunding a cancelled paid order are not in this sprint. For now all payments go
   to one test Stripe account, and a refund is done by hand in the Stripe dashboard.
 
-- **Work with no ticket yet — vendor side.** On Nov 4 Unubileg pushed the branch
-  `feature/sprint-4-pos-sales` (7 commits, not merged): counter sales recorded
-  through the same order code as web orders, counter order numbering, a "Today's
-  numbers" summary on the Service screen, a daily job that closes orders left on
-  Ready, and a Next.js version bump. None of the Sprint 4 tickets covers it. The
-  POS sale recording and "today's numbers" were planned for Sprint 3 and not
-  reached, so tickets should be added for this work (and it adds one database
-  migration that runs on deploy).
+- **Vendor-side work was built before it had tickets.** On Nov 4 Unubileg pushed
+  the branch `feature/sprint-4-pos-sales` (7 commits, not merged). Tickets for it
+  were added the same day (FPS-67 counter sales, FPS-68 "Today's numbers", FPS-69
+  daily cleanup job, FPS-70 payments page and dependency clean-up) and put In
+  Progress, so the board matches GitHub. They move to Done only after the branch is
+  merged. POS sale recording and "today's numbers" were planned for Sprint 3 and not
+  reached. The branch adds one database migration that runs on deploy, and the
+  cleanup job needs a `CRON_SECRET` variable on Vercel.
 
 - **Seeded demo data goes stale.** Demo stops are created relative to the day the
   seed is run, so after about two weeks the storefront shows no open stops. The
