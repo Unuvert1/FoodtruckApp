@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { Show } from "@clerk/nextjs";
-import { Wordmark } from "@/components/platform/wordmark";
-import { DEV_AUTH_BYPASS } from "@/lib/dev-auth";
+import { SiteFooter } from "@/components/platform/site-footer";
+import { SiteHeader } from "@/components/platform/site-header";
 
 export const metadata = {
   title: "FoodtruckApp: preorders for food trucks",
@@ -31,32 +30,16 @@ const FEATURES = [
   },
 ];
 
+const STEPS = [
+  { title: "Add your menu", body: "Dishes, prices and the choices that go with them. Photos if you have them." },
+  { title: "Put a stop on the schedule", body: "Where you'll be and when. Set it to repeat and your week fills itself in." },
+  { title: "Share your link", body: "Print it as a QR code for the truck. Orders land on your service screen." },
+];
+
 export default function HomePage() {
   return (
     <div className="min-h-dvh">
-      <header className="mx-auto flex max-w-5xl items-center justify-between px-4 py-5">
-        <Wordmark />
-        <nav className="flex items-center gap-2">
-          {DEV_AUTH_BYPASS ? (
-            <Link href="/dashboard" className="rounded-lg px-3 py-2 text-sm font-semibold hover:bg-muted">
-              Open dashboard
-            </Link>
-          ) : (
-            <>
-              <Show when="signed-out">
-                <Link href="/sign-in" className="rounded-lg px-3 py-2 text-sm font-semibold hover:bg-muted">
-                  Log in
-                </Link>
-              </Show>
-              <Show when="signed-in">
-                <Link href="/dashboard" className="rounded-lg px-3 py-2 text-sm font-semibold hover:bg-muted">
-                  Open dashboard
-                </Link>
-              </Show>
-            </>
-          )}
-        </nav>
-      </header>
+      <SiteHeader />
 
       <main>
         <section className="mx-auto max-w-5xl px-4 pt-10 pb-12 sm:pt-16">
@@ -112,7 +95,7 @@ export default function HomePage() {
           </p>
         </section>
 
-        <section aria-label="Features" className="mx-auto max-w-5xl px-4 pt-16 pb-20">
+        <section aria-label="Features" className="mx-auto max-w-5xl px-4 pt-16">
           <ul className="divide-y divide-border border-y border-border">
             {FEATURES.map((f) => (
               <li key={f.title} className="grid gap-2 py-6 sm:grid-cols-[1fr_1.4fr] sm:gap-10">
@@ -122,11 +105,42 @@ export default function HomePage() {
             ))}
           </ul>
         </section>
+
+        {/* Genuinely a sequence, so it is numbered. */}
+        <section aria-labelledby="steps-heading" className="mx-auto max-w-5xl px-4 pt-16">
+          <h2 id="steps-heading" className="font-display text-3xl leading-tight font-bold sm:text-4xl">
+            Trading by the weekend
+          </h2>
+          <ol className="mt-6 grid gap-x-10 gap-y-8 sm:grid-cols-3">
+            {STEPS.map((step, i) => (
+              <li key={step.title}>
+                <p className="font-display text-5xl leading-none font-extrabold text-signal">{i + 1}</p>
+                <h3 className="mt-3 font-semibold">{step.title}</h3>
+                <p className="mt-1.5 leading-relaxed text-muted-foreground">{step.body}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section className="mx-auto max-w-5xl px-4 pt-16 pb-4">
+          <h2 className="max-w-[16ch] font-display text-[clamp(2.25rem,6vw,3.75rem)] leading-[0.95] font-extrabold tracking-[-0.01em]">
+            No monthly fee. 2.5% when you sell.
+          </h2>
+          <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3">
+            <Link
+              href="/sign-up"
+              className="inline-flex h-12 items-center rounded-xl bg-foreground px-6 text-base font-semibold text-background hover:bg-foreground/90"
+            >
+              Set up your truck
+            </Link>
+            <Link href="/pricing" className="text-base font-semibold underline underline-offset-4">
+              See what it costs
+            </Link>
+          </div>
+        </section>
       </main>
 
-      <footer className="mx-auto max-w-5xl px-4 pb-10 text-sm text-muted-foreground">
-        <p>FoodtruckApp is a class project by two developers.</p>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

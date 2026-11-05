@@ -93,6 +93,11 @@ function toTruckSettings(row: TruckRow): TruckSettings {
   };
 }
 
+/** A unique-constraint collision (P2002), which several writes here treat as "someone got there first". */
+export function isUniqueViolation(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+}
+
 function toRule(row: Prisma.ScheduleRuleGetPayload<object>): ScheduleRule {
   return {
     id: row.id,
@@ -1062,7 +1067,7 @@ export async function createRuleStop(
     });
     return true;
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return false;
+    if (isUniqueViolation(error)) return false;
     throw error;
   }
 }
@@ -1273,7 +1278,7 @@ export async function updateTruckSlug(truckId: string, slug: string): Promise<{ 
     await prisma.truck.update({ where: { id: truckId }, data: { slug } });
   } catch (error) {
     // Lost a race for the same slug: the unique index is the real guard.
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+    if (isUniqueViolation(error)) {
       return { ok: false, oldSlug: current.slug };
     }
     throw error;
@@ -1467,7 +1472,7 @@ export async function acceptInvite(token: string, clerkUserId: string, email: st
     });
   } catch (error) {
     // Two tabs accepting at once: the unique (truck, user) index lost the race to the other one.
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return { status: "already_member" };
+    if (isUniqueViolation(error)) return { status: "already_member" };
     throw error;
   }
 }

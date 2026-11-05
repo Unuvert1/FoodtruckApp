@@ -16,6 +16,7 @@ import {
   createTruckForUser,
   getOrderStatus,
   isSlugTaken,
+  isUniqueViolation,
   joinDemoTruck,
   requireTruckAccess,
   setItemArchived,
@@ -159,11 +160,19 @@ export async function createTruck(input: z.input<typeof truckSchema>): Promise<C
     const field = issue.path[0] as "name" | "slug" | "timezone";
     return { ok: false, error: issue.message, field };
   }
-  if (await isSlugTaken(parsed.data.slug)) {
-    return { ok: false, error: "That address is taken. Try another.", field: "slug" };
-  }
+  const taken = { ok: false, error: "That address is taken. Try another.", field: "slug" } as const;
+  if (await isSlugTaken(parsed.data.slug)) return taken;
 
-  await createTruckForUser(userId, { ...parsed.data, notificationEmail: await getUserEmail() });
+  try {
+    await createTruckForUser(userId, { ...parsed.data, notificationEmail: await getUserEmail() });
+  } catch (error) {
+    // Checking then creating leaves a gap: two people can claim the same slug
+    // in the same second and both get past isSlugTaken. Truck.slug is unique,
+    // so the database catches it — this turns that into the same sentence
+    // rather than a 500 on the first screen a new vendor ever sees.
+    if (isUniqueViolation(error)) return taken;
+    throw error;
+  }
   redirect("/dashboard");
 }
 
