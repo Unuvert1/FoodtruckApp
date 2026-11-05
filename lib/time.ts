@@ -136,9 +136,13 @@ export function addDaysToDateKey(key: string, days: number): string {
  * On a DST day the range is 23 or 25 hours long, which is correct.
  */
 export function zonedDayRange(timeZone: string, now: DateInput): { startsAt: Date; endsAt: Date } {
-  const today = zonedDateKey(now, timeZone);
+  return zonedDayRangeOf(timeZone, zonedDateKey(now, timeZone));
+}
+
+/** The same, for a day named outright ("2026-11-04") rather than found from an instant. */
+export function zonedDayRangeOf(timeZone: string, dayKey: string): { startsAt: Date; endsAt: Date } {
   return {
-    startsAt: zonedTimeFromParts(timeZone, today, "00:00"),
-    endsAt: zonedTimeFromParts(timeZone, addDaysToDateKey(today, 1), "00:00"),
+    startsAt: zonedTimeFromParts(timeZone, dayKey, "00:00"),
+    endsAt: zonedTimeFromParts(timeZone, addDaysToDateKey(dayKey, 1), "00:00"),
   };
 }

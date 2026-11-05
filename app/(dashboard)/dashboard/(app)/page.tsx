@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { getDashboardServices, getManagedMenu, getServiceOrders, getTodaysNumbers, requireTruckAccess } from "@/lib/tenant";
+import { getDashboardServices, getManagedMenu, getServiceOrders, getSetupProgress, getTodaysNumbers, requireTruckAccess } from "@/lib/tenant";
 import { isHappeningNow } from "@/lib/service";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { ServiceScreen } from "@/components/dashboard/service-screen";
 import { TodaysNumbers } from "@/components/dashboard/todays-numbers";
+import { SetupChecklist } from "@/components/dashboard/setup-checklist";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Service" };
@@ -17,9 +18,10 @@ export default async function ServicePage({ searchParams }: Props) {
   const now = new Date();
   // The day's takings never depend on a stop: a counter sale belongs to no
   // service, so this is read before the no-stops branch, not after it.
-  const [{ services, locations }, today] = await Promise.all([
+  const [{ services, locations }, today, setup] = await Promise.all([
     getDashboardServices(truck.id, now),
     getTodaysNumbers(truck.id, truck.timezone, now),
+    getSetupProgress(truck.id, now),
   ]);
   const selected =
     services.find((s) => s.id === serviceParam) ?? services.find((s) => isHappeningNow(s, now)) ?? services[0];
@@ -38,7 +40,8 @@ export default async function ServicePage({ searchParams }: Props) {
         >
           Go to Schedule
         </Link>
-        <div className="mt-8 max-w-[40rem]">
+        <div className="mt-8 max-w-[40rem] space-y-4">
+          <SetupChecklist progress={setup} truckSlug={truck.slug} />
           <TodaysNumbers numbers={today} timeZone={truck.timezone} />
         </div>
       </main>
@@ -62,7 +65,12 @@ export default async function ServicePage({ searchParams }: Props) {
         selectedId={selected.id}
         orders={orders}
         stockSections={stockSections}
-        today={<TodaysNumbers numbers={today} timeZone={truck.timezone} />}
+        today={
+          <div className="space-y-4">
+            <SetupChecklist progress={setup} truckSlug={truck.slug} />
+            <TodaysNumbers numbers={today} timeZone={truck.timezone} />
+          </div>
+        }
       />
       <AutoRefresh seconds={10} />
     </>

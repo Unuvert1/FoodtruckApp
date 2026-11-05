@@ -8,12 +8,14 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { ActionResult } from "@/app/(dashboard)/dashboard/actions";
 import { MAX_CLOSES_MINUTES_BEFORE, MAX_OPENS_HOURS_BEFORE } from "@/lib/schedule/ordering-window";
+import { sendStopCancelledEmail } from "@/lib/email";
 import { materializeScheduleRules } from "@/lib/schedule/materialize";
 import { saveService } from "@/lib/schedule/saveService";
 import {
   createLocation,
   createScheduleRule,
   findLocationByPlaceId,
+  getStopForNotice,
   removeUnbookedRuleStops,
   requireTruckAccess,
   serviceHasOrders,
@@ -23,7 +25,7 @@ import {
   updateLocation,
   updateScheduleRule,
 } from "@/lib/tenant";
-import { zonedTimeFromParts } from "@/lib/time";
+import { formatWhen, zonedTimeFromParts } from "@/lib/time";
 
 const id = z.string().min(1).max(50);
 const fail = (error: string): ActionResult => ({ ok: false, error });
@@ -162,9 +164,29 @@ export async function setStopStatus(input: { serviceId: string; status: "DRAFT" 
   if (status === "DRAFT" && (await serviceHasOrders(truck.id, serviceId))) {
     return fail("This stop already has orders, so it can't go back to a draft. Cancel it instead.");
   }
-  const updated = await setServiceStatus(truck.id, serviceId, status);
+  // Read the stop before cancelling it: afterwards it still exists, but this
+  // keeps the notice describing what the vendor actually tapped.
+  const stop = status === "CANCELLED" ? await getStopForNotice(truck.id, serviceId) : null;
+
+  const result = await setServiceStatus(truck.id, serviceId, status);
   refresh(truck.slug);
-  return updated ? { ok: true } : fail("That stop no longer exists, or was already cancelled.");
+  if (!result.ok) return fail("That stop no longer exists, or was already cancelled.");
+
+  if (stop?.notifyCancellation && stop.notificationEmail) {
+    // A failed email must never fail the cancellation: the stop is already off.
+    try {
+      await sendStopCancelledEmail({
+        to: stop.notificationEmail,
+        truckName: stop.truckName,
+        locationName: stop.locationName,
+        when: formatWhen(stop.startsAt, stop.timeZone),
+        cancelledOrders: result.cancelledOrders,
+      });
+    } catch (error) {
+      console.error("[email] stop-cancelled email failed", error);
+    }
+  }
+  return { ok: true };
 }
 
 // ─── Repeating stops ───────────────────────────────────────────────────────

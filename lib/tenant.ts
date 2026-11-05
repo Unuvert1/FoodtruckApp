@@ -28,6 +28,7 @@ import type {
   ScheduleRuleInput,
   ScheduleRuleRow,
   Service,
+  SetupProgress,
   TeamMember,
   TodaysNumbers,
   Truck,
@@ -36,7 +37,7 @@ import type {
 import type { PricingItem } from "@/lib/pricing";
 import { formatCounterNumber, formatOrderNumber } from "@/lib/orders/order-number";
 import { closesMinutesBeforeOf, opensHoursBeforeOf } from "@/lib/schedule/ordering-window";
-import { zonedDayRange } from "@/lib/time";
+import { zonedDateKey, zonedDayRangeOf } from "@/lib/time";
 import type { ExistingSlot, SlotPlan, SlotSpec } from "@/lib/schedule/slots";
 
 type Tx = Prisma.TransactionClient;
@@ -209,6 +210,8 @@ function toOrderView(row: OrderRow): OrderView {
     status: row.status,
     customerName: row.customerName,
     customerPhone: row.customerPhone,
+    source: row.source,
+    tender: row.tender,
     customerEmail: row.customerEmail,
     pickupAt: row.pickupSlot?.startsAt.toISOString() ?? null,
     placedAt: row.placedAt.toISOString(),
@@ -446,7 +449,26 @@ export async function nextCounterOrderNumber(tx: Tx, truckId: string): Promise<s
  * which keeps the void and refund rules in one readable place.
  */
 export async function getTodaysNumbers(truckId: string, timeZone: string, now: Date): Promise<TodaysNumbers> {
-  const { startsAt, endsAt } = zonedDayRange(timeZone, now);
+  return getDayNumbers(truckId, timeZone, zonedDateKey(now, timeZone));
+}
+
+/**
+ * How far a new truck has got. Three things, each of which is checked rather
+ * than ticked off by hand, so the list can never disagree with reality — and it
+ * stops being rendered at all once they are all true.
+ */
+export async function getSetupProgress(truckId: string, now: Date): Promise<SetupProgress> {
+  const [dishes, stops, orders] = await Promise.all([
+    prisma.menuItem.count({ where: { truckId, archivedAt: null } }),
+    prisma.service.count({ where: { truckId, status: { in: ["PUBLISHED", "LIVE"] }, endsAt: { gte: now } } }),
+    prisma.order.count({ where: { truckId, status: { not: "PENDING_PAYMENT" } } }),
+  ]);
+  return { hasMenu: dishes > 0, hasStop: stops > 0, hasOrder: orders > 0 };
+}
+
+/** The same figures for any one local day, which is what the daily summary needs. */
+export async function getDayNumbers(truckId: string, timeZone: string, dayKey: string): Promise<TodaysNumbers> {
+  const { startsAt, endsAt } = zonedDayRangeOf(timeZone, dayKey);
 
   const orders = await prisma.order.findMany({
     where: {
@@ -638,6 +660,46 @@ export async function getServiceOrders(truckId: string, serviceId: string): Prom
 }
 
 /** READY → PICKED_UP for anything ready longer than AUTO_COMPLETE_AFTER_MINUTES. */
+/** Trucks that asked for a daily summary and gave an address to send it to. */
+export async function getTrucksForDailySummary(): Promise<
+  { id: string; name: string; timezone: string; notificationEmail: string; lastDailySummaryOn: string | null }[]
+> {
+  const rows = await prisma.truck.findMany({
+    where: { archivedAt: null, notifyDailySummary: true, notificationEmail: { not: null } },
+    select: { id: true, name: true, timezone: true, notificationEmail: true, lastDailySummaryOn: true },
+  });
+  return rows.filter((r): r is typeof r & { notificationEmail: string } => r.notificationEmail !== null);
+}
+
+/**
+ * Claims a day's summary for a truck. Returns false if it was already sent, so
+ * running the cron twice cannot send the same figures twice.
+ */
+export async function claimDailySummary(truckId: string, dayKey: string): Promise<boolean> {
+  const { count } = await prisma.truck.updateMany({
+    where: { id: truckId, NOT: { lastDailySummaryOn: dayKey } },
+    data: { lastDailySummaryOn: dayKey },
+  });
+  return count === 1;
+}
+
+/** The stop a cancellation email describes. */
+export async function getStopForNotice(truckId: string, serviceId: string) {
+  const row = await prisma.service.findFirst({
+    where: { id: serviceId, truckId },
+    select: { startsAt: true, location: { select: { name: true } }, truck: { select: { name: true, timezone: true, notificationEmail: true, notifyCancellation: true } } },
+  });
+  if (!row) return null;
+  return {
+    startsAt: row.startsAt,
+    locationName: row.location.name,
+    truckName: row.truck.name,
+    timeZone: row.truck.timezone,
+    notificationEmail: row.truck.notificationEmail,
+    notifyCancellation: row.truck.notifyCancellation,
+  };
+}
+
 /**
  * Every trading truck, for the cron to walk. Not tenant-scoped for the same
  * reason as the sweep below: the caller is a schedule, not a signed-in vendor.
@@ -678,6 +740,49 @@ export async function sweepAutoCompleted(
 }
 
 /** One order for the vendor's detail route. Sweeps stale READY orders first. */
+/**
+ * Every order the truck has taken, newest first, for the orders screen.
+ *
+ * The queue on the Service screen only ever shows one stop. This is the other
+ * question a vendor has: "a customer is on the phone about A07 from Saturday."
+ * So it searches the three things they'd have to hand — the order number, the
+ * name, the phone — and pages rather than loading a season of orders at once.
+ */
+export async function searchOrders(
+  truckId: string,
+  opts: { query?: string; from?: Date; to?: Date; source?: "WEB" | "COUNTER"; take: number; skip?: number }
+): Promise<{ orders: OrderView[]; total: number }> {
+  const query = opts.query?.trim();
+  const where: Prisma.OrderWhereInput = {
+    truckId,
+    // An unpaid order is a checkout someone abandoned, not an order.
+    status: { not: "PENDING_PAYMENT" },
+    ...(opts.from || opts.to ? { placedAt: { ...(opts.from && { gte: opts.from }), ...(opts.to && { lt: opts.to }) } } : {}),
+    ...(opts.source && { source: opts.source }),
+    ...(query && {
+      OR: [
+        { orderNumber: { equals: query, mode: "insensitive" } },
+        { orderNumber: { startsWith: query, mode: "insensitive" } },
+        { customerName: { contains: query, mode: "insensitive" } },
+        // Typed with spaces or dashes, stored however it arrived.
+        { customerPhone: { contains: query.replace(/[^\d+]/g, "") || query } },
+      ],
+    }),
+  };
+
+  const [rows, total] = await Promise.all([
+    prisma.order.findMany({
+      where,
+      include: orderInclude,
+      orderBy: { placedAt: "desc" },
+      take: opts.take,
+      skip: opts.skip ?? 0,
+    }),
+    prisma.order.count({ where }),
+  ]);
+  return { orders: rows.map(toOrderView), total };
+}
+
 export async function getOrderDetail(truckId: string, orderId: string): Promise<OrderView | null> {
   await sweepAutoCompleted(truckId, { now: new Date() });
   const row = await prisma.order.findFirst({ where: { id: orderId, truckId }, include: orderInclude });
@@ -1152,26 +1257,37 @@ export async function updateServiceTimes(tx: Tx, truckId: string, serviceId: str
  * deleted (orders reference it), and a customer's status page doesn't look at
  * the service's status. A cancelled stop can't be reopened.
  */
-export async function setServiceStatus(truckId: string, serviceId: string, status: "DRAFT" | "PUBLISHED" | "CANCELLED"): Promise<boolean> {
+/**
+ * Returns false if the stop was already cancelled or gone. On a cancellation it
+ * also reports how many orders went with it, so the vendor can be emailed a
+ * record of what their tap actually did.
+ */
+export async function setServiceStatus(
+  truckId: string,
+  serviceId: string,
+  status: "DRAFT" | "PUBLISHED" | "CANCELLED"
+): Promise<{ ok: boolean; cancelledOrders: number }> {
   return prisma.$transaction(async (tx) => {
     const { count } = await tx.service.updateMany({
       where: { id: serviceId, truckId, status: { not: "CANCELLED" } },
       data: { status },
     });
-    if (count !== 1) return false;
-    if (status !== "CANCELLED") return true;
+    if (count !== 1) return { ok: false, cancelledOrders: 0 };
+    if (status !== "CANCELLED") return { ok: true, cancelledOrders: 0 };
 
     // TODO(Stream C): refund the paid ones through Stripe.
     const orders = await tx.order.findMany({
       where: { serviceId, truckId, status: { in: ["PENDING_PAYMENT", ...ACTIVE_STATUSES] } },
       select: { id: true, pickupSlotId: true, status: true },
     });
+    let cancelledOrders = 0;
     for (const order of orders) {
       const cancelled = await tx.order.updateMany({
         where: { id: order.id, truckId, status: order.status },
         data: { status: "CANCELLED" },
       });
       if (cancelled.count !== 1) continue;
+      cancelledOrders++;
       if (order.pickupSlotId) {
         await tx.pickupSlot.updateMany({
           where: { id: order.pickupSlotId, bookedCount: { gt: 0 } },
@@ -1179,7 +1295,7 @@ export async function setServiceStatus(truckId: string, serviceId: string, statu
         });
       }
     }
-    return true;
+    return { ok: true, cancelledOrders };
   });
 }
 

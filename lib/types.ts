@@ -98,6 +98,12 @@ export type Menu = {
 /** How a counter sale was paid. A web order has none: Stripe handled it. */
 export type TenderType = "CASH" | "CARD" | "OTHER";
 
+/** Where an order came from. */
+export type OrderSource = "WEB" | "SMS" | "API" | "COUNTER";
+
+/** The three things between a new truck and its first order. */
+export type SetupProgress = { hasMenu: boolean; hasStop: boolean; hasOrder: boolean };
+
 /** The day so far, in the truck's own timezone. Counts web orders and counter sales alike. */
 export type TodaysNumbers = {
   orderCount: number;
@@ -140,6 +146,10 @@ export type OrderView = {
   // Both null for a counter sale: nobody to call, and no pickup time to wait for.
   customerPhone: string | null;
   customerEmail: string | null;
+  /** How it arrived: WEB is a preorder, COUNTER a walk-up rung up on the POS. */
+  source: OrderSource;
+  /** Counter sales only: how it was paid. */
+  tender: TenderType | null;
   pickupAt: string | null;
   placedAt: string;
   acceptedAt: string | null;

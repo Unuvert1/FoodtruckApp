@@ -77,6 +77,9 @@ model Truck {
   notifyNewOrder     Boolean @default(true)
   notifyCancellation Boolean @default(false)
   notifyDailySummary Boolean @default(false)
+  // The last local day a summary was sent for ("2026-11-04"), so a second cron
+  // run in the same day cannot send the same figures twice.
+  lastDailySummaryOn String?
 
   // Defaults a new Service starts from. Changing these never touches a
   // Service that already exists.
