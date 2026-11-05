@@ -6,6 +6,7 @@ what a sprint actually produced without cloning and running anything.
 | Sprint | File | Recorded by |
 |---|---|---|
 | Sprint 4 | [Sprint4-Unubileg-Recording.mp4](Sprint4-Unubileg-Recording.mp4) | Unubileg |
+| Sprint 4 | [Sprint4-Jovanni-Recording.mp4](Sprint4-Jovanni-Recording.mp4) | Jovanni |
 | Sprint 3 | [Sprint3-Unubileg-Recording.mp4](Sprint3-Unubileg-Recording.mp4) | Unubileg |
 
 ## Sprint 4
@@ -25,6 +26,18 @@ Recorded against the production database, so the stops and the earlier counter
 sales in it are real rows. Payments are not shown: Stripe is configured on the
 deployed site but not in local development, so orders there are marked paid
 without being charged.
+
+### Sprint 4, customer side (Jovanni)
+
+A one-minute, silent walkthrough on the live Vercel site (foodtruck-app-one.vercel.app).
+It starts at the home page, adds an item, and checks out. Placing the order now sends
+the customer to Stripe's hosted payment page in test mode. The recording leaves that
+page without paying, and the order page shows the new "Pay to send your order" screen
+with a Pay button, so a customer who backs out can come back and finish. It then pays
+with Stripe's test card, and the order page changes to "Order sent" with an order
+number once the webhook marks the order paid.
+
+No real money moves: the Stripe account is in test mode. The recording has no audio.
 
 ## Sprint 3
 
