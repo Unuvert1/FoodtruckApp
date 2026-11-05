@@ -26,7 +26,7 @@ export default function PricingPage() {
     <div className="min-h-dvh">
       <SiteHeader />
 
-      <main className="mx-auto max-w-5xl px-4">
+      <main className="mx-auto max-w-6xl px-5">
         <section className="pt-10 pb-12 sm:pt-16">
           <h1 className="max-w-[16ch] font-display text-[clamp(2.75rem,9vw,5.5rem)] leading-[0.92] font-extrabold tracking-[-0.01em]">
             You only pay when you sell.

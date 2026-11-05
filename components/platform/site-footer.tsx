@@ -27,7 +27,7 @@ const COLUMNS = [
 export function SiteFooter() {
   return (
     <footer className="mt-20 border-t border-border">
-      <div className="mx-auto max-w-5xl px-4 py-12">
+      <div className="mx-auto max-w-6xl px-5 py-12">
         <div className="grid gap-10 sm:grid-cols-[1.2fr_repeat(3,1fr)]">
           <div>
             <p className="font-display text-2xl leading-none font-extrabold tracking-tight">FoodtruckApp</p>

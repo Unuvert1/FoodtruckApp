@@ -30,7 +30,7 @@ export default async function PostPage({ params }: Props) {
     <div className="min-h-dvh">
       <SiteHeader />
 
-      <main className="mx-auto max-w-5xl px-4">
+      <main className="mx-auto max-w-6xl px-5">
         <article>
           <header className="pt-10 pb-8 sm:pt-16">
             <p className="text-sm text-muted-foreground">

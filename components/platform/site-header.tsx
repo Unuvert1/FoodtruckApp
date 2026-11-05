@@ -36,7 +36,8 @@ function AccountLink({ className }: { className?: string }) {
 
 export function SiteHeader() {
   return (
-    <header className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-5">
+    <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-md">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-3.5">
       <Wordmark />
 
       <nav aria-label="Main" className="hidden items-center gap-1 sm:flex">
@@ -46,6 +47,12 @@ export function SiteHeader() {
           </Link>
         ))}
         <AccountLink className={`${navLink} ml-1`} />
+        <Link
+          href="/sign-up"
+          className="ml-2 inline-flex h-10 items-center rounded-full bg-foreground px-4.5 text-sm font-semibold text-background outline-none hover:bg-foreground/90 focus-visible:ring-4 focus-visible:ring-foreground/25"
+        >
+          Set up your truck
+        </Link>
       </nav>
 
       {/* Phone: a disclosure, so the menu needs no JavaScript to open. */}
@@ -62,9 +69,13 @@ export function SiteHeader() {
           ))}
           <div className="mt-1 border-t border-border pt-1">
             <AccountLink className="block px-4 py-3 text-[0.9375rem] font-semibold hover:bg-muted" />
+            <Link href="/sign-up" className="block px-4 py-3 text-[0.9375rem] font-semibold hover:bg-muted">
+              Set up your truck
+            </Link>
           </div>
         </div>
       </details>
+      </div>
     </header>
   );
 }

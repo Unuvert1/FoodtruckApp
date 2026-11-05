@@ -19,7 +19,7 @@ export default function LegalPage() {
     <div className="min-h-dvh">
       <SiteHeader />
 
-      <main className="mx-auto max-w-5xl px-4">
+      <main className="mx-auto max-w-6xl px-5">
         <section className="pt-10 pb-8 sm:pt-16">
           <h1 className="max-w-[16ch] font-display text-[clamp(2.5rem,8vw,4.75rem)] leading-[0.94] font-extrabold tracking-[-0.01em]">
             Terms and privacy
