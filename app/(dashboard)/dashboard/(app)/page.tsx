@@ -1,7 +1,10 @@
-import { getDashboardServices, getManagedMenu, getServiceOrders, requireTruckAccess } from "@/lib/tenant";
+import Link from "next/link";
+import { getDashboardServices, getManagedMenu, getServiceOrders, getSetupProgress, getTodaysNumbers, requireTruckAccess } from "@/lib/tenant";
 import { isHappeningNow } from "@/lib/service";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { ServiceScreen } from "@/components/dashboard/service-screen";
+import { TodaysNumbers } from "@/components/dashboard/todays-numbers";
+import { SetupChecklist } from "@/components/dashboard/setup-checklist";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Service" };
@@ -13,7 +16,13 @@ export default async function ServicePage({ searchParams }: Props) {
   const { service: serviceParam } = await searchParams;
 
   const now = new Date();
-  const { services, locations } = await getDashboardServices(truck.id, now);
+  // The day's takings never depend on a stop: a counter sale belongs to no
+  // service, so this is read before the no-stops branch, not after it.
+  const [{ services, locations }, today, setup] = await Promise.all([
+    getDashboardServices(truck.id, now),
+    getTodaysNumbers(truck.id, truck.timezone, now),
+    getSetupProgress(truck.id, now),
+  ]);
   const selected =
     services.find((s) => s.id === serviceParam) ?? services.find((s) => isHappeningNow(s, now)) ?? services[0];
 
@@ -22,14 +31,27 @@ export default async function ServicePage({ searchParams }: Props) {
       <main className="mx-auto max-w-7xl px-4 py-12">
         <h1 className="text-[1.75rem] font-semibold tracking-[-0.02em]">No stops scheduled</h1>
         <p className="mt-3 max-w-prose text-muted-foreground">
-          Orders show up here once you have a stop on the schedule. Scheduling stops from the dashboard is coming
-          next. Meanwhile you can set up your menu.
+          Orders show up here once you have a stop on the schedule. Add one and publish it, and this screen becomes
+          your queue for the day.
         </p>
+        <Link
+          href="/dashboard/schedule"
+          className="mt-4 inline-flex h-12 items-center rounded-xl bg-foreground px-5 text-[1.0625rem] font-bold text-background outline-none focus-visible:ring-4 focus-visible:ring-foreground/30"
+        >
+          Go to Schedule
+        </Link>
+        <div className="mt-8 max-w-[40rem] space-y-4">
+          <SetupChecklist progress={setup} truckSlug={truck.slug} />
+          <TodaysNumbers numbers={today} timeZone={truck.timezone} />
+        </div>
       </main>
     );
   }
 
-  const [orders, menu] = await Promise.all([getServiceOrders(truck.id, selected.id), getManagedMenu(truck.id)]);
+  const [orders, menu] = await Promise.all([
+    getServiceOrders(truck.id, selected.id),
+    getManagedMenu(truck.id),
+  ]);
   const stockSections = (menu?.sections ?? [])
     .map((s) => ({ ...s, items: s.items.filter((i) => !i.archived) }))
     .filter((s) => s.items.length > 0);
@@ -43,6 +65,12 @@ export default async function ServicePage({ searchParams }: Props) {
         selectedId={selected.id}
         orders={orders}
         stockSections={stockSections}
+        today={
+          <div className="space-y-4">
+            <SetupChecklist progress={setup} truckSlug={truck.slug} />
+            <TodaysNumbers numbers={today} timeZone={truck.timezone} />
+          </div>
+        }
       />
       <AutoRefresh seconds={10} />
     </>

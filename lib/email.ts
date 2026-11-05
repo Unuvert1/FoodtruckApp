@@ -120,6 +120,80 @@ export function sendTestEmail(input: { to: string; truckName: string }): Promise
   return deliver({ to: input.to, subject, text, html });
 }
 
+/** A record of a stop being called off, and what it took with it. */
+export function sendStopCancelledEmail(input: {
+  to: string;
+  truckName: string;
+  locationName: string;
+  when: string;
+  cancelledOrders: number;
+}): Promise<SendResult> {
+  const { cancelledOrders: n } = input;
+  const orders =
+    n === 0 ? "Nobody had ordered yet." : `${n} ${n === 1 ? "order was" : "orders were"} cancelled with it.`;
+  const subject = `Cancelled: ${input.locationName}, ${input.when}`;
+  const text = [
+    `The stop at ${input.locationName} on ${input.when} has been cancelled.`,
+    "",
+    orders,
+    n > 0 ? "Those customers can no longer see a pickup time, and their orders are marked cancelled." : "",
+    "",
+    `Schedule: ${appUrl()}/dashboard/schedule`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const html = `<div style="font-family:system-ui,sans-serif;max-width:480px;color:#1d2733">
+    <p style="margin:0;color:#5c6660">${escapeHtml(input.truckName)}</p>
+    <h1 style="margin:4px 0 0;font-size:24px">Stop cancelled</h1>
+    <p>${escapeHtml(input.locationName)}, ${escapeHtml(input.when)}.</p>
+    <p style="font-weight:600">${escapeHtml(orders)}</p>
+    <p><a href="${appUrl()}/dashboard/schedule">Open your schedule</a></p></div>`;
+  return deliver({ to: input.to, subject, text, html });
+}
+
+/** The day's trading, after it's over. */
+export function sendDailySummaryEmail(input: {
+  to: string;
+  truckName: string;
+  dayLabel: string;
+  orderCount: number;
+  netCents: number;
+  counterCents: number;
+  onlineCents: number;
+  topItems: { name: string; quantity: number }[];
+}): Promise<SendResult> {
+  const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+  const top = input.topItems.map((i) => `${i.name} x${i.quantity}`).join(", ");
+  const subject = `${input.dayLabel}: ${money(input.netCents)} across ${input.orderCount} ${input.orderCount === 1 ? "order" : "orders"}`;
+  const text = [
+    `${input.truckName} — ${input.dayLabel}`,
+    "",
+    `Taken: ${money(input.netCents)}`,
+    `Orders: ${input.orderCount}`,
+    `At the window: ${money(input.counterCents)}`,
+    `Online: ${money(input.onlineCents)}`,
+    top ? `Selling: ${top}` : "",
+    "",
+    `Dashboard: ${appUrl()}/dashboard`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const row = (label: string, value: string) =>
+    `<tr><td style="padding:6px 0;color:#5c6660">${escapeHtml(label)}</td><td style="padding:6px 0;text-align:right;font-weight:600">${escapeHtml(value)}</td></tr>`;
+  const html = `<div style="font-family:system-ui,sans-serif;max-width:480px;color:#1d2733">
+    <p style="margin:0;color:#5c6660">${escapeHtml(input.truckName)}</p>
+    <h1 style="margin:4px 0 0;font-size:24px">${escapeHtml(input.dayLabel)}</h1>
+    <p style="font-size:32px;font-weight:700;margin:12px 0 0">${money(input.netCents)}</p>
+    <table style="width:100%;border-collapse:collapse;margin-top:12px">
+      ${row("Orders", String(input.orderCount))}
+      ${row("At the window", money(input.counterCents))}
+      ${row("Online", money(input.onlineCents))}
+      ${top ? row("Selling", top) : ""}
+    </table>
+    <p><a href="${appUrl()}/dashboard">Open your dashboard</a></p></div>`;
+  return deliver({ to: input.to, subject, text, html });
+}
+
 export function sendInviteEmail(input: { to: string; truckName: string; role: "OWNER" | "STAFF"; token: string; expiresAt: Date }): Promise<SendResult> {
   const link = `${appUrl()}/invite/${input.token}`;
   const roleText = input.role === "OWNER" ? "an owner" : "staff";

@@ -1,10 +1,13 @@
 import { PaymentsStatus } from "@/components/dashboard/settings/payments-status";
-import { getPaymentStatus, requireTruckAccess } from "@/lib/tenant";
+import { paymentsMode } from "@/lib/stripe";
+import { requireTruckAccess } from "@/lib/tenant";
 
 export const metadata = { title: "Payments · Settings" };
 
 export default async function PaymentsPage() {
-  const { truck } = await requireTruckAccess();
+  // Nothing tenant-scoped to read: Stripe is configured per server, not per
+  // truck, until each truck connects its own account.
+  await requireTruckAccess();
 
-  return <PaymentsStatus status={await getPaymentStatus(truck.id)} />;
+  return <PaymentsStatus mode={paymentsMode()} />;
 }

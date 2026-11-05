@@ -43,6 +43,13 @@ enum OrderSource {
   COUNTER // rung up at the window on the POS; no pickup slot
 }
 
+/// How a counter sale was paid. A web order has none: Stripe handled it.
+enum TenderType {
+  CASH
+  CARD
+  OTHER
+}
+
 model Truck {
   id                   String  @id @default(cuid())
   slug                 String  @unique
@@ -57,6 +64,11 @@ model Truck {
   stripeOnboarded      Boolean @default(false)
   taxRateBps           Int     @default(0)
   platformFeeBps       Int     @default(250)
+  // Hands out counter-sale order numbers ("C-1", "C-2") with an atomic
+  // increment, the way Service.orderCount does for a stop's orders. A counter
+  // sale has no Service to count against, and @@unique([serviceId,
+  // orderNumber]) stops applying once serviceId is NULL.
+  counterSeq           Int     @default(0)
   customDomain         String? @unique
   notificationEmail    String? // where vendor emails go
   archivedAt           DateTime? // the truck is closed; nothing is ever hard-deleted
@@ -65,6 +77,9 @@ model Truck {
   notifyNewOrder     Boolean @default(true)
   notifyCancellation Boolean @default(false)
   notifyDailySummary Boolean @default(false)
+  // The last local day a summary was sent for ("2026-11-04"), so a second cron
+  // run in the same day cannot send the same figures twice.
+  lastDailySummaryOn String?
 
   // Defaults a new Service starts from. Changing these never touches a
   // Service that already exists.
@@ -81,6 +96,7 @@ model Truck {
   invites     Invite[]
   locations   Location[]
   services    Service[]
+  rules       ScheduleRule[]
   menus       Menu[]
   menuItems   MenuItem[]
   dishPhotos  DishPhoto[]
@@ -138,11 +154,40 @@ model Location {
   lastUsedAt      DateTime? // bumped when a Service is scheduled here; orders "your spots"
   archivedAt      DateTime? // soft delete: a Service may reference this spot
 
-  truck    Truck     @relation(fields: [truckId], references: [id], onDelete: Cascade)
+  truck    Truck          @relation(fields: [truckId], references: [id], onDelete: Cascade)
   services Service[]
+  rules    ScheduleRule[]
 
   @@index([truckId])
   @@index([truckId, provider, providerPlaceId])
+}
+
+/// A standing commitment: this spot, these weekdays, these hours, until switched
+/// off. The generator turns it into real Service rows a fortnight ahead, because
+/// orders and pickup slots hang off a Service. Times are wall-clock in the
+/// truck's timezone ("11:00", not an instant), so 11am stays 11am across a
+/// daylight-saving change.
+model ScheduleRule {
+  id                  String   @id @default(cuid())
+  truckId             String
+  locationId          String
+  weekdays            Int[] // 0 = Sunday … 6 = Saturday, as the truck's zone sees the date
+  startTime           String // "HH:mm"
+  endTime             String // "HH:mm", later the same day
+  opensHoursBefore    Int
+  closesMinutesBefore Int
+  slotMinutes         Int
+  ordersPerSlot       Int
+  publicNote          String   @default("")
+  active              Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  truck    Truck     @relation(fields: [truckId], references: [id], onDelete: Cascade)
+  location Location  @relation(fields: [locationId], references: [id])
+  services Service[]
+
+  @@index([truckId])
 }
 
 // One truck, at one location, from one time to another.
@@ -160,15 +205,22 @@ model Service {
   status           ServiceStatus @default(DRAFT)
   orderCount       Int           @default(0) // incremented atomically to hand out order numbers
   publicNote       String        @default("") // one-off note for this stop only ("cash only today")
+  // Set when a ScheduleRule generated this stop. ruleDateKey is the local date
+  // it covers ("2026-11-10"); the unique pair is what makes generating twice a
+  // no-op, and what stops a cancelled Tuesday being resurrected next run.
+  ruleId           String?
+  ruleDateKey      String?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
-  truck       Truck        @relation(fields: [truckId], references: [id], onDelete: Cascade)
-  location    Location     @relation(fields: [locationId], references: [id])
-  menu        Menu         @relation(fields: [menuId], references: [id])
+  truck       Truck         @relation(fields: [truckId], references: [id], onDelete: Cascade)
+  location    Location      @relation(fields: [locationId], references: [id])
+  menu        Menu          @relation(fields: [menuId], references: [id])
+  rule        ScheduleRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
   pickupSlots PickupSlot[]
   orders      Order[]
 
+  @@unique([ruleId, ruleDateKey])
   @@index([truckId, startsAt])
 }
 
@@ -304,6 +356,7 @@ model Order {
   autoCompletedAt         DateTime? // set by the 30-minute READY sweep, not by a human tap
   refundedCents           Int         @default(0) // sum of voided line items; no money has moved yet
   source                  OrderSource @default(WEB)
+  tender                  TenderType? // counter sales only: how it was paid
   updatedAt               DateTime    @updatedAt
 
   truck      Truck           @relation(fields: [truckId], references: [id], onDelete: Cascade)

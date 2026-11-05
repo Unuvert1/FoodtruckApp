@@ -93,14 +93,14 @@ export function NotificationsForm({ notificationEmail, notifyNewOrder, notifyCan
             <EventRow
               id="notify-cancellation"
               label="Cancellations"
-              hint="Saved, but these emails aren't sent yet."
+              hint="When a stop is called off, with how many orders went with it."
               checked={events.notifyCancellation}
               onChange={setEvent("notifyCancellation")}
             />
             <EventRow
               id="notify-daily"
               label="Daily summary"
-              hint="Saved, but these emails aren't sent yet."
+              hint="Yesterday's takings, orders and best sellers, once a day."
               checked={events.notifyDailySummary}
               onChange={setEvent("notifyDailySummary")}
             />

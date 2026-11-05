@@ -8,3 +8,14 @@ export function formatOrderNumber(n: number): string {
   const letter = LETTERS[Math.floor(index / 99) % LETTERS.length];
   return `${letter}${String((index % 99) + 1).padStart(2, "0")}`;
 }
+
+/**
+ * The nth counter sale of a truck (1-based) → "C-1".
+ *
+ * The hyphen is the point. A counter sale is numbered per truck, a web order
+ * per service, so the two sequences run side by side and would collide if they
+ * shared a shape: formatOrderNumber reaches "C" at the 199th order of a stop.
+ */
+export function formatCounterNumber(n: number): string {
+  return `C-${n}`;
+}

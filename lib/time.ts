@@ -128,3 +128,21 @@ export function addDaysToDateKey(key: string, days: number): string {
   const [y, m, d] = key.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
 }
+
+/**
+ * Midnight to midnight around an instant, as the zone sees it: the half-open
+ * range [startsAt, endsAt) that "today" means to a truck. Not UTC's day — a
+ * stop trading to 11pm in Chicago is still today, though UTC has rolled over.
+ * On a DST day the range is 23 or 25 hours long, which is correct.
+ */
+export function zonedDayRange(timeZone: string, now: DateInput): { startsAt: Date; endsAt: Date } {
+  return zonedDayRangeOf(timeZone, zonedDateKey(now, timeZone));
+}
+
+/** The same, for a day named outright ("2026-11-04") rather than found from an instant. */
+export function zonedDayRangeOf(timeZone: string, dayKey: string): { startsAt: Date; endsAt: Date } {
+  return {
+    startsAt: zonedTimeFromParts(timeZone, dayKey, "00:00"),
+    endsAt: zonedTimeFromParts(timeZone, addDaysToDateKey(dayKey, 1), "00:00"),
+  };
+}

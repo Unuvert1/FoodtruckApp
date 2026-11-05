@@ -95,6 +95,26 @@ export type Menu = {
 
 // ─── Orders ────────────────────────────────────────────────────────────────
 
+/** How a counter sale was paid. A web order has none: Stripe handled it. */
+export type TenderType = "CASH" | "CARD" | "OTHER";
+
+/** Where an order came from. */
+export type OrderSource = "WEB" | "SMS" | "API" | "COUNTER";
+
+/** The three things between a new truck and its first order. */
+export type SetupProgress = { hasMenu: boolean; hasStop: boolean; hasOrder: boolean };
+
+/** The day so far, in the truck's own timezone. Counts web orders and counter sales alike. */
+export type TodaysNumbers = {
+  orderCount: number;
+  netCents: number; // taken, less anything voided back
+  counterCents: number;
+  onlineCents: number;
+  cashCents: number;
+  topItems: { name: string; quantity: number }[];
+  busiestSlot: { startsAt: Date; count: number } | null;
+};
+
 export type OrderStatus =
   | "PENDING_PAYMENT"
   | "PAID"
@@ -126,6 +146,10 @@ export type OrderView = {
   // Both null for a counter sale: nobody to call, and no pickup time to wait for.
   customerPhone: string | null;
   customerEmail: string | null;
+  /** How it arrived: WEB is a preorder, COUNTER a walk-up rung up on the POS. */
+  source: OrderSource;
+  /** Counter sales only: how it was paid. */
+  tender: TenderType | null;
   pickupAt: string | null;
   placedAt: string;
   acceptedAt: string | null;
@@ -188,7 +212,8 @@ export type OrderingDefaults = {
   slotLeadMinutes: number;
 };
 
-export type PaymentStatus = { accountId: string | null; onboarded: boolean };
+/** Which Stripe keys the server is running on. See lib/stripe.ts. */
+export type PaymentsMode = "off" | "test" | "live";
 
 export type TeamMember = {
   id: string;
@@ -212,6 +237,31 @@ export type PendingInvite = {
 
 /** A stop on the vendor's schedule, with how many live orders hang off it. */
 export type ScheduleRow = { service: Service; location: Location; orderCount: number };
+
+/** A standing commitment that generates stops: see lib/schedule/rules.ts. */
+export type ScheduleRule = {
+  id: string;
+  locationId: string;
+  weekdays: number[]; // 0 = Sunday … 6 = Saturday
+  startTime: string; // "HH:mm" in the truck's timezone
+  endTime: string;
+  opensHoursBefore: number;
+  closesMinutesBefore: number;
+  slotMinutes: number;
+  ordersPerSlot: number;
+  publicNote: string;
+  active: boolean;
+};
+
+export type ScheduleRuleRow = { rule: ScheduleRule; location: Location };
+
+/** The repeating-stop form's values. Same vocabulary as StopDraft, minus the date. */
+export type ScheduleRuleInput = Omit<ScheduleRule, "id">;
+
+export type RuleDraft = Omit<ScheduleRule, "id" | "active"> & {
+  ruleId?: string; // present = editing that rule
+  locationId: string;
+};
 
 /** The stop form's values, in the wall-clock terms its inputs speak (the truck's timezone). */
 export type StopDraft = {

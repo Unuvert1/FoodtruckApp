@@ -15,10 +15,11 @@ type Props = {
   selectedId: string;
   orders: OrderView[];
   stockSections: ManagedSection[];
+  today: React.ReactNode;
 };
 
 /** The screen a vendor keeps open during service: a sticky bar over one order queue. */
-export function ServiceScreen({ truck, services, locations, selectedId, orders, stockSections }: Props) {
+export function ServiceScreen({ truck, services, locations, selectedId, orders, stockSections, today }: Props) {
   const { arrived, arrivalKey, newCount } = useNewOrders(orders);
   const soldOutCount = stockSections.flatMap((s) => s.items).filter((i) => !i.isAvailable).length;
 
@@ -31,6 +32,7 @@ export function ServiceScreen({ truck, services, locations, selectedId, orders, 
         <StockSheet sections={stockSections} soldOutCount={soldOutCount} />
       </ServiceBar>
       <div className="mx-auto max-w-[40rem] md:px-4 lg:max-w-[44rem]">
+        <div className="px-4 pt-4 md:px-0">{today}</div>
         <OrderQueue truck={truck} orders={orders} arrived={arrived} />
       </div>
     </main>

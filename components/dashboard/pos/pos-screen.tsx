@@ -12,15 +12,19 @@ import { PosOptions } from "@/components/dashboard/pos/pos-options";
 import { TenderStep, type Tender } from "@/components/dashboard/pos/tender-step";
 import { CashPad } from "@/components/dashboard/pos/cash-pad";
 import { SaleClosed } from "@/components/dashboard/pos/sale-closed";
-import { useCheck, type DisplayLine } from "@/components/dashboard/pos/use-check";
+import { useCheck, toRequestedLines, type DisplayLine } from "@/components/dashboard/pos/use-check";
+import { recordCounterSale } from "@/app/(dashboard)/dashboard/(app)/pos/actions";
 
 type Props = { sections: ManagedSection[]; taxRateBps: number };
+
+type Closed = { tender: Tender; totalCents: number; changeCents: number; orderNumber: string };
 
 type Flow =
   | { step: "check" }
   | { step: "tender" }
   | { step: "cash" }
-  | { step: "closed"; tender: Tender; totalCents: number; changeCents: number };
+  | { step: "saving" }
+  | ({ step: "closed" } & Closed);
 
 type OptionsTarget = { item: MenuItem; lineKey: string | null; initial: ReturnType<typeof defaultSelections> };
 
@@ -47,6 +51,7 @@ export function PosScreen({ sections, taxRateBps }: Props) {
   const [flow, setFlow] = useState<Flow>({ step: "check" });
   const [options, setOptions] = useState<OptionsTarget | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const section = sections.find((s) => s.id === sectionId) ?? sections[0];
   const { totalCents } = check.totals;
@@ -75,27 +80,51 @@ export function PosScreen({ sections, taxRateBps }: Props) {
     setOptions(null);
   }
 
-  // The whole wiring surface for the real pipeline later: nothing persists today.
-  function onPaid(tender: Tender, tenderedCents: number) {
-    setFlow({ step: "closed", tender, totalCents, changeCents: Math.max(0, tenderedCents - totalCents) });
+  /**
+   * Record the sale, then close it. The check is only cleared once the server
+   * has it: losing a rung-up check at a busy window is the worst thing this
+   * screen could do, so a failure keeps every line and says what went wrong.
+   */
+  async function onPaid(tender: Tender, tenderedCents: number) {
+    if (flow.step === "saving") return; // a second tap must not charge twice
+    const charged = totalCents;
+    const changeCents = Math.max(0, tenderedCents - charged);
+    const lines = toRequestedLines(check.lines);
+
+    setError(null);
+    setFlow({ step: "saving" });
+
+    const result = await recordCounterSale({ lines, tender });
+    if (!result.ok) {
+      setError(result.error);
+      setFlow({ step: "tender" });
+      return;
+    }
+
+    setFlow({ step: "closed", tender, totalCents: charged, changeCents, orderNumber: result.orderNumber });
     check.clear();
   }
 
   function onNewSale() {
     setFlow({ step: "check" });
+    setError(null);
     setSheetOpen(false);
   }
 
-  const footer =
-    flow.step === "tender" ? (
+  const controls =
+    flow.step === "saving" ? (
+      <p role="status" className="flex h-16 items-center justify-center text-[0.9375rem] text-muted-foreground">
+        Recording the sale…
+      </p>
+    ) : flow.step === "tender" ? (
       <TenderStep
         onBack={() => setFlow({ step: "check" })}
-        onCard={() => onPaid("CARD", totalCents)}
+        onCard={() => void onPaid("CARD", totalCents)}
         onCash={() => setFlow({ step: "cash" })}
-        onOther={() => onPaid("OTHER", totalCents)}
+        onOther={() => void onPaid("OTHER", totalCents)}
       />
     ) : flow.step === "cash" ? (
-      <CashPad totalCents={totalCents} onBack={() => setFlow({ step: "tender" })} onComplete={(t) => onPaid("CASH", t)} />
+      <CashPad totalCents={totalCents} onBack={() => setFlow({ step: "tender" })} onComplete={(t) => void onPaid("CASH", t)} />
     ) : check.lines.length > 0 ? (
       <button
         type="button"
@@ -109,9 +138,26 @@ export function PosScreen({ sections, taxRateBps }: Props) {
       <p className="flex h-16 items-center justify-center text-[0.9375rem] text-muted-foreground">Nothing to charge yet.</p>
     );
 
+  const footer = (
+    <>
+      {error && (
+        <p role="alert" className="mb-3 rounded-xl bg-destructive/10 px-4 py-3 text-[0.9375rem] text-destructive">
+          {error} The check is still here — try again.
+        </p>
+      )}
+      {controls}
+    </>
+  );
+
   const panel =
     flow.step === "closed" ? (
-      <SaleClosed tender={flow.tender} totalCents={flow.totalCents} changeCents={flow.changeCents} onNewSale={onNewSale} />
+      <SaleClosed
+        tender={flow.tender}
+        totalCents={flow.totalCents}
+        changeCents={flow.changeCents}
+        orderNumber={flow.orderNumber}
+        onNewSale={onNewSale}
+      />
     ) : (
       <CheckPanel
         lines={check.lines}
