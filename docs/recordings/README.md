@@ -5,7 +5,26 @@ what a sprint actually produced without cloning and running anything.
 
 | Sprint | File | Recorded by |
 |---|---|---|
+| Sprint 4 | [Sprint4-Unubileg-Recording.mp4](Sprint4-Unubileg-Recording.mp4) | Unubileg |
 | Sprint 3 | [Sprint3-Unubileg-Recording.mp4](Sprint3-Unubileg-Recording.mp4) | Unubileg |
+
+## Sprint 4
+
+The marketing site, the customer storefront, and the vendor side with the two
+things Sprint 3 left unfinished now working.
+
+The parts worth watching: the Schedule screen's repeating stops, where switching
+one rule on fills the calendar a fortnight ahead and switching it off clears what
+nobody has booked; and the POS, where a cash sale now survives a refresh and
+appears in the day's figures. Before this sprint it vanished.
+
+Also shown: the new Orders screen, which can find a past order by number, name or
+phone — the first time the app could answer "where is A07 from Saturday".
+
+Recorded against the production database, so the stops and the earlier counter
+sales in it are real rows. Payments are not shown: Stripe is configured on the
+deployed site but not in local development, so orders there are marked paid
+without being charged.
 
 ## Sprint 3
 
