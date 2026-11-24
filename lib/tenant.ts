@@ -633,14 +633,26 @@ export async function getOrderNotification(truckId: string, orderId: string) {
 
 // ─── Dashboard: service screen ─────────────────────────────────────────────
 
+/** How long a finished stop stays reachable on the Service screen. */
+const SERVICE_SCREEN_GRACE_MS = 2 * 60 * 60 * 1000;
+
+/**
+ * The stop filter the Service screen works within. Shared with the nav cue so
+ * the two cannot drift: a count of orders the screen has no way to show is a
+ * badge that pulses forever.
+ */
+function dashboardServiceWhere(truckId: string, now: Date): Prisma.ServiceWhereInput {
+  return {
+    truckId,
+    status: { in: VISIBLE_SERVICE_STATUSES },
+    endsAt: { gt: new Date(now.getTime() - SERVICE_SCREEN_GRACE_MS) },
+  };
+}
+
 /** Services a vendor might be working: anything not long finished, soonest first. */
 export async function getDashboardServices(truckId: string, now: Date): Promise<ServicesWithLocations> {
   const rows = await prisma.service.findMany({
-    where: {
-      truckId,
-      status: { in: VISIBLE_SERVICE_STATUSES },
-      endsAt: { gt: new Date(now.getTime() - 2 * 60 * 60 * 1000) },
-    },
+    where: dashboardServiceWhere(truckId, now),
     orderBy: { startsAt: "asc" },
     take: 10,
     include: { location: true },
@@ -885,9 +897,16 @@ export async function cancelOrder(truckId: string, orderId: string): Promise<boo
   });
 }
 
-/** Orders still waiting to be accepted. Drives the nav cue on every dashboard page. */
-export async function countNewOrders(truckId: string): Promise<number> {
-  return prisma.order.count({ where: { truckId, status: "PAID" } });
+/**
+ * Orders still waiting to be accepted. Drives the nav cue on every dashboard
+ * page, so it counts only what the Service screen can actually open: an order
+ * left paid on a stop that finished days ago is a thing to find on the Orders
+ * screen, not a tab that pulses until someone clears it by hand.
+ */
+export async function countNewOrders(truckId: string, now: Date = new Date()): Promise<number> {
+  return prisma.order.count({
+    where: { truckId, status: "PAID", service: dashboardServiceWhere(truckId, now) },
+  });
 }
 
 // ─── Dashboard: menu management ────────────────────────────────────────────
